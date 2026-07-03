@@ -30,6 +30,7 @@
     "active": true,
     "targets": ["deb", "nsis", "appimage"],
     "externalBin": ["binaries/rdl-parser"],
+    "icon": ["icons/icon.png"],
     "windows": {
       "webviewInstallMode": {
         "type": "downloadBootstrapper",

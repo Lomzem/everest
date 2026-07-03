@@ -10,7 +10,7 @@
     "build:web": "vite build",
     "tauri:dev": "bun tauri dev",
     "tauri:build": "bun tauri build",
-    "tauri:build:appimage": "bun tauri build --bundles appimage",
+    "tauri:build:appimage": "NO_STRIP=true bun tauri build --bundles appimage",
     "tauri:build:win": "bun tauri build --target x86_64-pc-windows-msvc",
     "tauri:build:deb": "bun tauri build --bundles deb",
     "sidecar:build": "bun scripts/build-rdl-parser-sidecar.ts",
