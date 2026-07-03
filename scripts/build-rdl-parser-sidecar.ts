@@ -31,27 +31,54 @@ if (isWindowsTarget !== (process.platform === 'win32')) {
 	);
 }
 
-execFileSync(
-	'uv',
-	[
-		'run',
-		'--with',
-		'pyinstaller',
-		'--with',
-		'systemrdl-compiler',
-		'pyinstaller',
-		'--onefile',
-		'--clean',
-		'--noconfirm',
-		'--name',
-		binaryName,
-		path.join(root, 'scripts', 'rdl_parser.py'),
-		'--distpath',
-		binaryDir,
-		'--workpath',
-		path.join(root, 'out', 'pyinstaller-work'),
-		'--specpath',
-		path.join(root, 'out', 'pyinstaller-spec'),
-	],
-	{ stdio: 'inherit' },
-);
+const uvArgs = [
+	'run',
+	'--with',
+	'pyinstaller',
+	'--with',
+	'systemrdl-compiler',
+	'pyinstaller',
+	'--onefile',
+	'--clean',
+	'--noconfirm',
+	'--name',
+	binaryName,
+	path.join(root, 'scripts', 'rdl_parser.py'),
+	'--distpath',
+	binaryDir,
+	'--workpath',
+	path.join(root, 'out', 'pyinstaller-work'),
+	'--specpath',
+	path.join(root, 'out', 'pyinstaller-spec'),
+];
+
+const pythonCommand =
+	process.platform === 'win32' ? 'python' : (process.platform === 'darwin' ? 'python3' : 'python3');
+
+function runWithUvFallback(): void {
+	const candidates: Array<[string, string[]]> = [
+		['uv', uvArgs],
+		[pythonCommand, ['-m', 'uv', ...uvArgs]],
+		['python', ['-m', 'uv', ...uvArgs]],
+	];
+
+	for (const [command, args] of candidates) {
+		try {
+			execFileSync(command, args, { stdio: 'inherit' });
+			return;
+		} catch (error) {
+			const err = error as NodeJS.ErrnoException;
+			if (err.code === 'ENOENT') {
+				continue;
+			}
+			throw error;
+		}
+	}
+
+	throw new Error(
+		`Could not locate uv. Install it with "pip install uv" (Linux/Windows) or ` +
+			'https://docs.astral.sh/uv/getting-started/installation/ and re-run.',
+	);
+}
+
+runWithUvFallback();
