@@ -33,6 +33,14 @@ jobs:
         with:
           bun-version: latest
       - uses: dtolnay/rust-toolchain@stable
+      - name: Install uv Python toolchain helper (for sidecar build)
+        if: runner.os != 'Windows'
+        run: |
+          python3 -m pip install --user uv
+      - name: Install uv Python toolchain helper (for sidecar build)
+        if: runner.os == 'Windows'
+        run: |
+          python -m pip install --user uv
       - name: Install Ubuntu build deps
         if: matrix.os == 'ubuntu-22.04'
         run: |
