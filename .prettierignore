@@ -1,0 +1,32 @@
+# Dependencies
+node_modules
+
+# Generated and build output
+.svelte-kit
+build
+dist
+dist-electron
+out
+coverage
+*.tsbuildinfo
+
+# Vendored reference repositories
+repos
+
+# Package manager and tooling artifacts
+bun.lockb
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Binary and static assets
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.ico
+*.icns
+*.pdf
+*.zip
+*.tar
+*.gz

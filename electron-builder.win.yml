@@ -1,0 +1,17 @@
+appId: dev.basecamp.desktop
+productName: Basecamp
+asar: true
+directories:
+  output: out/win-portable
+files:
+  - build/**/*
+  - dist-electron/**/*
+  - package.json
+win:
+  executableName: basecamp
+  target:
+    - target: portable
+      arch:
+        - x64
+portable:
+  artifactName: '${productName}-${version}-portable.${ext}'

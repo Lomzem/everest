@@ -1,0 +1,16 @@
+appId: dev.basecamp.desktop
+productName: Basecamp
+asar: true
+directories:
+  output: out/appimage
+files:
+  - build/**/*
+  - dist-electron/**/*
+  - package.json
+linux:
+  executableName: basecamp
+  category: Development
+  target:
+    - target: AppImage
+      arch:
+        - x64

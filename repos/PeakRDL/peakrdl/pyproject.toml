@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "peakrdl"
+dynamic = ["version"]
+requires-python = ">=3.7"
+dependencies = [
+    "peakrdl-cli",
+    "peakrdl-html ~= 2.10",
+    "peakrdl-ipxact ~= 3.4",
+    "peakrdl-regblock ~= 1.0",
+    "peakrdl-systemrdl ~= 1.0",
+    "peakrdl-uvm ~= 2.3",
+    "peakrdl-cheader ~= 1.0",
+]
+
+authors = [
+    {name="Alex Mykyta"},
+]
+description = "Toolchain for control/status register automation and code generation."
+readme = "README.md"
+license = {text = "LGPLv3"}
+keywords = [
+    "SystemRDL", "PeakRDL", "CSR", "compiler", "tool", "registers", "generator",
+    "C", "header", "software", "Verilog", "SystemVerilog", "register abstraction layer",
+    "FPGA", "ASIC",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+]
+
+[project.urls]
+Source = "https://github.com/SystemRDL/PeakRDL"
+Tracker = "https://github.com/SystemRDL/PeakRDL/issues"
+Changelog = "https://github.com/SystemRDL/PeakRDL/releases"
+Documentation = "https://peakrdl.readthedocs.io/"
+
+[tool.setuptools.dynamic]
+version = {attr = "peakrdl_toolchain.__version__"}

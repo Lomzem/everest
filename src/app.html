@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="text-scale" content="scale" />
+		<script>
+			const themeStorageKey = 'basecamp.theme';
+			const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
+			const storedTheme = () => {
+				const theme = window.localStorage.getItem(themeStorageKey);
+				return theme === 'light' || theme === 'dark' || theme === 'system' ? theme : 'system';
+			};
+			const updateTheme = () => {
+				const theme = storedTheme();
+				document.documentElement.classList.toggle(
+					'dark',
+					theme === 'dark' || (theme === 'system' && systemTheme.matches),
+				);
+			};
+			updateTheme();
+			systemTheme.addEventListener('change', updateTheme);
+		</script>
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>
