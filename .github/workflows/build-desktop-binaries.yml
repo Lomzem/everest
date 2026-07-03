@@ -1,0 +1,66 @@
+name: Build desktop binaries
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  build-windows-exe:
+    name: Build Windows .exe
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+          key: bun-windows-${{ runner.os }}-${{ hashFiles('package.json') }}
+          restore-keys: |
+            bun-windows-${{ runner.os }}-
+      - name: Install dependencies
+        run: bun install
+      - name: Build portable Windows executable
+        run: bun run make:win:portable
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: out/win-portable/**/*.exe
+
+  build-linux-appimage:
+    name: Build Linux AppImage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+          key: bun-ubuntu-${{ runner.os }}-${{ hashFiles('package.json') }}
+          restore-keys: |
+            bun-ubuntu-${{ runner.os }}-
+      - name: Install dependencies
+        run: bun install
+      - name: Build Linux AppImage
+        run: bun run make:appimage
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage
+          path: out/appimage/**/*.AppImage
