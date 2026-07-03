@@ -12,7 +12,6 @@ export default defineConfig(
 		'node_modules/**',
 		'.svelte-kit/**',
 		'build/**',
-		'dist-electron/**',
 		'out/**',
 		'src/lib/components/ui/**',
 		'src-tauri/target/**',
@@ -44,7 +43,7 @@ export default defineConfig(
 	},
 	{
 		name: 'basecamp/node-globals',
-		files: ['*.{js,cjs,mjs,ts,cts,mts}', 'electron/**/*.{ts,cts,mts}', 'scripts/**/*.{ts,cts,mts}'],
+		files: ['*.{js,cjs,mjs,ts,cts,mts}', 'scripts/**/*.{ts,cts,mts}'],
 		languageOptions: {
 			globals: {
 				...globals.node,
@@ -65,13 +64,6 @@ export default defineConfig(
 			'@typescript-eslint/no-empty-object-type': 'off',
 			'svelte/no-at-html-tags': 'error',
 			'svelte/prefer-const': 'warn',
-		},
-	},
-	{
-		name: 'basecamp/preload-commonjs',
-		files: ['electron/preload.cts'],
-		rules: {
-			'@typescript-eslint/no-require-imports': 'off',
 		},
 	},
 	{

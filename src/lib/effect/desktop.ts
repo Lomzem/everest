@@ -1,5 +1,5 @@
 import { Context, Data, Effect, Layer } from 'effect';
-import type { DesktopApi, RdlFileResult } from '$lib/electron';
+import type { DesktopApi, RdlFileResult } from '$lib/desktop-api';
 import { createTauriDesktopApi } from '$lib/tauri';
 
 export class DesktopUnavailable extends Data.TaggedError('DesktopUnavailable')<{

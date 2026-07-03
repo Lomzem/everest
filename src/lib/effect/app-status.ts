@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
 import { isTauriRuntime } from '$lib/tauri';
 
-export type RuntimeTarget = 'browser' | 'electron' | 'tauri';
+export type RuntimeTarget = 'browser' | 'tauri';
 
 export interface AppStatus {
 	readonly name: string;
@@ -10,7 +10,6 @@ export interface AppStatus {
 }
 
 const detectRuntime = Effect.sync((): RuntimeTarget => {
-	if (globalThis.window?.basecamp !== undefined) return 'electron';
 	return isTauriRuntime() ? 'tauri' : 'browser';
 });
 

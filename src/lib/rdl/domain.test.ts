@@ -117,7 +117,7 @@ describe('RDL domain helpers', () => {
 		).toContain('reset = mode_e::ON;');
 	});
 
-	it('validates decoded documents at the Electron boundary', async () => {
+	it('validates decoded documents at the desktop boundary', async () => {
 		await expect(
 			Effect.runPromise(decodeRdlDocument(createBlankDocument())),
 		).resolves.toMatchObject({

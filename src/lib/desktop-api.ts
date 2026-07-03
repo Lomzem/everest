@@ -10,11 +10,6 @@ export interface RdlFileResult {
 
 export interface DesktopApi {
 	readonly platform: NodeJS.Platform;
-	readonly versions: Readonly<{
-		readonly electron: string;
-		readonly chromium: string;
-		readonly node: string;
-	}>;
 	readonly openRdlFile: () => Promise<RdlFileResult | null>;
 	readonly saveRdlFile: (path: string, content: string) => Promise<void>;
 	readonly saveRdlFileAs: (

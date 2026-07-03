@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import EditorShell from '$lib/components/app/EditorShell.svelte';
 	import WelcomeScreen from '$lib/components/app/WelcomeScreen.svelte';
-	import '$lib/electron';
+	import '$lib/desktop-api';
 	import { editor } from '$lib/state/editor.svelte';
 
 	onMount(() => {

@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import type { DesktopApi, MenuCommand, RdlFileResult } from '$lib/electron';
+import type { DesktopApi, MenuCommand, RdlFileResult } from '$lib/desktop-api';
 
 declare global {
 	interface Window {
@@ -17,7 +17,6 @@ export function createTauriDesktopApi(): DesktopApi | undefined {
 
 	return {
 		platform: navigator.platform.toLowerCase().includes('win') ? 'win32' : 'linux',
-		versions: { electron: '', chromium: '', node: '' },
 		openRdlFile: () => invoke<RdlFileResult | null>('open_rdl_file'),
 		saveRdlFile: (filePath, content) => invoke<void>('save_rdl_file', { filePath, content }),
 		saveRdlFileAs: (content, suggestedPath) =>

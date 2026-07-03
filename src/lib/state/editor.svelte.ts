@@ -1,6 +1,6 @@
 import { tick } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import type { MenuCommand } from '$lib/electron';
+import type { MenuCommand } from '$lib/desktop-api';
 import {
 	exportDocumentAs,
 	openDocument,
