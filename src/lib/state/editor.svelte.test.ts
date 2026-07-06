@@ -59,10 +59,27 @@ describe('EditorState derived names', () => {
 		expect(state.canEditStructure()).toBe(true);
 
 		await state.addField();
+		const fieldId = state.selectedFieldId;
 		expect(state.selectedRegister.fields).toHaveLength(2);
+		expect(state.canEditField(fieldId, 'title')).toBe(true);
+		state.updateField(fieldId, { title: 'Editable Field', name: 'editable_field' });
+		expect(state.selectedRegister.fields[1].title).toBe('Editable Field');
+		expect(state.selectedRegister.fields[1].name).toBe('editable_field');
 
 		await state.addEnumValue('control-mode');
+		const enumValueId = state.selectedRegister.fields[0].values[0].id;
 		expect(state.selectedRegister.fields[0].values).toHaveLength(1);
+		expect(state.canEditEnumValue('control-mode', enumValueId, 'name')).toBe(true);
+		state.updateEnumValue('control-mode', enumValueId, {
+			name: 'ENABLED',
+			value: 1,
+			desc: 'Enabled state.',
+		});
+		expect(state.selectedRegister.fields[0].values[0]).toMatchObject({
+			name: 'ENABLED',
+			value: 1,
+			desc: 'Enabled state.',
+		});
 	});
 });
 

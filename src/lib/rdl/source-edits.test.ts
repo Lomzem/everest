@@ -145,34 +145,40 @@ describe('source-safe edit ranges', () => {
 	it('inserts new fields into source-backed registers', () => {
 		const document = prepareSourceBackedDocument(sourceDocument());
 		const register = document.registers[0];
+		const nextField = {
+			id: 'control-enable',
+			name: 'enable',
+			title: 'Enable',
+			desc: 'Enables the block.',
+			msb: 2,
+			lsb: 2,
+			reset: 0,
+			sw: 'RW' as const,
+			hw: 'R' as const,
+			enumName: '',
+			values: [],
+			color: '',
+		};
 		const edited: RdlDocument = {
 			...document,
 			registers: [
 				{
 					...register,
-					fields: [
-						...register.fields,
-						{
-							id: 'control-enable',
-							name: 'enable',
-							title: 'Enable',
-							desc: 'Enables the block.',
-							msb: 2,
-							lsb: 2,
-							reset: 0,
-							sw: 'RW',
-							hw: 'R',
-							enumName: '',
-							values: [],
-							color: '',
-						},
-					],
+					fields: [...register.fields, nextField],
 				},
 			],
 		};
 
 		const content = sourceContentFor(edited);
 
+		expect(canEditFieldSourceProp(edited, 'control', 'control-enable', 'name')).toBe(true);
+		expect(canEditFieldSourceProp(edited, 'control', 'control-enable', 'title')).toBe(true);
+		expect(canEditFieldSourceProp(edited, 'control', 'control-enable', 'desc')).toBe(true);
+		expect(canEditFieldSourceProp(edited, 'control', 'control-enable', 'bitRange')).toBe(true);
+		expect(canEditFieldSourceProp(edited, 'control', 'control-enable', 'reset')).toBe(true);
+		expect(canEditFieldSourceProp(edited, 'control', 'control-enable', 'sw')).toBe(true);
+		expect(canEditFieldSourceProp(edited, 'control', 'control-enable', 'hw')).toBe(true);
+		expect(canEditFieldSourceProp(edited, 'control', 'control-enable', 'enumName')).toBe(true);
 		expect(content).toContain('field {\n\t\t\tname = "Enable";');
 		expect(content).toContain('} enable[2:2];');
 		expect(content).toContain('OFF = 0 {desc = "Off";};');
@@ -245,7 +251,29 @@ describe('source-safe edit ranges', () => {
 		const content = sourceContentFor(edited);
 
 		expect(content).toContain('AUTO = 2 {desc = "Auto";};');
+		expect(
+			canEditEnumValueSourceProp(edited, 'control', 'control-mode', 'control-mode-auto', 'name'),
+		).toBe(true);
+		expect(
+			canEditEnumValueSourceProp(edited, 'control', 'control-mode', 'control-mode-auto', 'value'),
+		).toBe(true);
+		expect(
+			canEditEnumValueSourceProp(edited, 'control', 'control-mode', 'control-mode-auto', 'desc'),
+		).toBe(true);
 		expect(content).not.toContain('ON = 1 {desc = "On";};');
+	});
+
+	it('keeps existing source properties read-only when their token ranges are missing', () => {
+		const document = prepareSourceBackedDocument({
+			...sourceDocument(),
+			source: {
+				...sourceDocument().source!,
+				text: sourceText.replace('\t\t\tname = "Mode";\n', ''),
+			},
+		});
+
+		expect(canEditFieldSourceProp(document, 'control', 'control-mode', 'name')).toBe(true);
+		expect(canEditFieldSourceProp(document, 'control', 'control-mode', 'title')).toBe(false);
 	});
 
 	it('removes deleted registers from source-backed files', () => {

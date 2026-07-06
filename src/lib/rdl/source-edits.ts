@@ -115,7 +115,11 @@ export function canEditFieldSourceProp(
 	prop: EditableFieldProp,
 ) {
 	if (!document.source) return true;
-	return Boolean(document.source.editRanges?.registers[registerId]?.fields[fieldId]?.[prop]);
+	const registerRanges = document.source.editRanges?.registers[registerId];
+	if (!registerRanges) return false;
+	const fieldRanges = registerRanges.fields[fieldId];
+	if (!fieldRanges) return canEditNewSourceField(registerRanges, prop);
+	return Boolean(fieldRanges[prop] || canInsertMissingFieldSourceProp(fieldRanges, prop));
 }
 
 export function canEditEnumValueSourceProp(
@@ -126,9 +130,37 @@ export function canEditEnumValueSourceProp(
 	prop: EditableEnumValueProp,
 ) {
 	if (!document.source) return true;
-	return Boolean(
-		document.source.editRanges?.registers[registerId]?.fields[fieldId]?.values[enumValueId]?.[prop],
+	const fieldRanges = document.source.editRanges?.registers[registerId]?.fields[fieldId];
+	if (!fieldRanges) return false;
+	const valueRanges = fieldRanges.values[enumValueId];
+	if (!valueRanges) return canEditNewSourceEnumValue(fieldRanges);
+	return Boolean(valueRanges[prop]);
+}
+
+function canEditNewSourceField(registerRanges: RegisterSourceEditRanges, prop: EditableFieldProp) {
+	if (registerRanges.bodyEnd === undefined) return false;
+	return (
+		prop === 'name' ||
+		prop === 'title' ||
+		prop === 'desc' ||
+		prop === 'bitRange' ||
+		prop === 'reset' ||
+		prop === 'sw' ||
+		prop === 'hw' ||
+		prop === 'enumName'
 	);
+}
+
+function canInsertMissingFieldSourceProp(
+	fieldRanges: FieldSourceEditRanges,
+	prop: EditableFieldProp,
+) {
+	if (prop === 'enumName') return fieldRanges.bodyEnd !== undefined;
+	return false;
+}
+
+function canEditNewSourceEnumValue(fieldRanges: FieldSourceEditRanges) {
+	return fieldRanges.enumBodyEnd !== undefined || fieldRanges.fullRange !== undefined;
 }
 
 function buildSourceEditRanges(document: RdlDocument): RdlSourceEditRanges {
