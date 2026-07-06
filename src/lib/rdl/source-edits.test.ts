@@ -284,7 +284,42 @@ describe('source-safe edit ranges', () => {
 
 		const content = sourceContentFor(edited);
 
+		expect(content).toContain('\t\t\tON = 1 {desc = "On";};\n\t\t\tOFF = 0 {desc = "Off";};');
+		expect(content).not.toContain('\t\t\tON = 1 {desc = "On";};\n\n\t\t\tOFF');
 		expect(content.indexOf('ON = 1 {desc = "On";};')).toBeLessThan(
+			content.indexOf('OFF = 0 {desc = "Off";};'),
+		);
+	});
+
+	it('rewrites source-backed enum members when a new value sorts before existing values', () => {
+		const document = prepareSourceBackedDocument(sourceDocument());
+		const register = document.registers[0];
+		const field = register.fields[0];
+		const edited: RdlDocument = {
+			...document,
+			registers: [
+				{
+					...register,
+					fields: [
+						{
+							...field,
+							values: [
+								{ id: 'control-mode-auto', name: 'AUTO', value: 0, desc: 'Auto-detectfoo' },
+								...field.values,
+							],
+						},
+					],
+				},
+			],
+		};
+
+		const content = sourceContentFor(edited);
+
+		expect(content).toContain(
+			'\t\t\tAUTO = 0 {desc = "Auto-detectfoo";};\n\t\t\tOFF = 0 {desc = "Off";};',
+		);
+		expect(content).not.toContain('\n\t\t\n\t\t\tAUTO');
+		expect(content.indexOf('AUTO = 0 {desc = "Auto-detectfoo";};')).toBeLessThan(
 			content.indexOf('OFF = 0 {desc = "Off";};'),
 		);
 	});

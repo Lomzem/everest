@@ -308,19 +308,18 @@ function applySourceEdits(
 	document: RdlDocument,
 ) {
 	const replacements: Replacement[] = [];
-	const deletedRanges: SourceRange[] = [];
 	const structuralReplacements = structuralSourceReplacements(sourceText, editRanges, document);
+	const structuralRanges = structuralReplacements
+		.map((replacement) => replacement.range)
+		.filter((range) => range.start !== range.end);
 	for (const replacement of structuralReplacements) {
 		replacements.push(replacement);
-		if (!replacement.text && replacement.range.start !== replacement.range.end) {
-			deletedRanges.push(replacement.range);
-		}
 	}
 
 	for (const register of document.registers) {
 		const ranges = editRanges.registers[register.id];
 		if (!ranges) continue;
-		if (deletedRanges.some((range) => containsRange(range, ranges.fullRange))) continue;
+		if (structuralRanges.some((range) => containsRange(range, ranges.fullRange))) continue;
 
 		replaceString(replacements, ranges.name, register.name, rdlIdentifier);
 		replaceString(replacements, ranges.title, register.title, rdlString);
@@ -333,7 +332,7 @@ function applySourceEdits(
 		for (const field of register.fields) {
 			const fieldRanges = ranges.fields[field.id];
 			if (!fieldRanges) continue;
-			if (deletedRanges.some((range) => containsRange(range, fieldRanges.fullRange))) continue;
+			if (structuralRanges.some((range) => containsRange(range, fieldRanges.fullRange))) continue;
 
 			replaceString(replacements, fieldRanges.name, field.name, rdlIdentifier);
 			replaceString(replacements, fieldRanges.title, field.title, rdlString);
@@ -347,7 +346,9 @@ function applySourceEdits(
 			for (const value of field.values) {
 				const valueRanges = fieldRanges.values[value.id];
 				if (!valueRanges) continue;
-				if (deletedRanges.some((range) => containsRange(range, valueRanges.fullRange))) continue;
+				if (structuralRanges.some((range) => containsRange(range, valueRanges.fullRange))) {
+					continue;
+				}
 
 				replaceString(replacements, valueRanges.name, value.name, rdlIdentifier);
 				replaceNumber(replacements, valueRanges.value, value.value, rdlInteger);
@@ -484,13 +485,18 @@ function structuralSourceReplacements(
 				});
 			}
 
-			for (const value of field.values) {
-				if (rewrittenEnumRange) continue;
-				if (fieldRanges.values[value.id] || !fieldRanges.enumBodyEnd) continue;
-				replacements.push({
-					range: { start: fieldRanges.enumBodyEnd, end: fieldRanges.enumBodyEnd },
-					text: `\n${sourceEnumValue(value, fieldRanges.enumBodyIndent ?? '\t\t\t')}`,
-				});
+			if (!rewrittenEnumRange && fieldRanges.enumBodyEnd) {
+				const newValues = field.values.filter((value) => !fieldRanges.values[value.id]);
+				if (newValues.length) {
+					replacements.push(
+						enumValueInsertion(
+							sourceText,
+							fieldRanges.enumBodyEnd,
+							fieldRanges.enumBodyIndent ?? '\t\t\t',
+							newValues,
+						),
+					);
+				}
 			}
 		}
 	}
@@ -500,7 +506,12 @@ function structuralSourceReplacements(
 
 function enumOrderChanged(sourceIds: string[], currentIds: string[]) {
 	if (sourceIds.length === 0) return false;
-	return orderChanged(sourceIds, currentIds);
+	const knownCurrentIds = currentIds.filter((id) => sourceIds.includes(id));
+	const newCurrentIds = currentIds.filter((id) => !sourceIds.includes(id));
+	const unchangedOrder = [...sourceIds.filter((id) => currentIds.includes(id)), ...newCurrentIds];
+	return (
+		currentIds.join('\0') !== unchangedOrder.join('\0') || orderChanged(sourceIds, knownCurrentIds)
+	);
 }
 
 function rewriteEnumMembers(
@@ -524,6 +535,27 @@ function rewriteEnumMembers(
 			.join('\n'),
 	});
 	return range;
+}
+
+function enumValueInsertion(
+	sourceText: string,
+	enumBodyEnd: number,
+	indent: string,
+	values: EnumValue[],
+): Replacement {
+	const closeLineStart = lineStart(sourceText, enumBodyEnd);
+	const closeIndent = sourceText.slice(closeLineStart, enumBodyEnd);
+	const text = values.map((value) => sourceEnumValue(value, indent)).join('\n');
+	if (closeIndent.trim() === '') {
+		return {
+			range: { start: closeLineStart, end: enumBodyEnd },
+			text: `${text}\n${closeIndent}`,
+		};
+	}
+	return {
+		range: { start: enumBodyEnd, end: enumBodyEnd },
+		text: `\n${text}`,
+	};
 }
 
 function orderChanged(sourceIds: string[], currentIds: string[]) {
