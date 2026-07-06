@@ -53,7 +53,7 @@ const uvArgs = [
 ];
 
 const pythonCommand =
-	process.platform === 'win32' ? 'python' : (process.platform === 'darwin' ? 'python3' : 'python3');
+	process.platform === 'win32' ? 'python' : process.platform === 'darwin' ? 'python3' : 'python3';
 
 function runWithUvFallback(): void {
 	const candidates: Array<[string, string[]]> = [

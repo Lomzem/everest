@@ -89,12 +89,19 @@ const SourceBitRangeTokenSchema = Schema.Struct({
 });
 
 const EnumValueSourceEditRangesSchema = Schema.Struct({
+	fullRange: Schema.optional(SourceRangeSchema),
 	name: Schema.optional(SourceStringTokenSchema),
 	value: Schema.optional(SourceNumberTokenSchema),
 	desc: Schema.optional(SourceStringTokenSchema),
 });
 
 const FieldSourceEditRangesSchema = Schema.Struct({
+	fullRange: Schema.optional(SourceRangeSchema),
+	bodyEnd: Schema.optional(Schema.Number),
+	bodyIndent: Schema.optional(Schema.String),
+	enumRange: Schema.optional(SourceRangeSchema),
+	enumBodyEnd: Schema.optional(Schema.Number),
+	enumBodyIndent: Schema.optional(Schema.String),
 	name: Schema.optional(SourceStringTokenSchema),
 	title: Schema.optional(SourceStringTokenSchema),
 	desc: Schema.optional(SourceStringTokenSchema),
@@ -107,6 +114,9 @@ const FieldSourceEditRangesSchema = Schema.Struct({
 });
 
 const RegisterSourceEditRangesSchema = Schema.Struct({
+	fullRange: Schema.optional(SourceRangeSchema),
+	bodyEnd: Schema.optional(Schema.Number),
+	bodyIndent: Schema.optional(Schema.String),
 	name: Schema.optional(SourceStringTokenSchema),
 	title: Schema.optional(SourceStringTokenSchema),
 	desc: Schema.optional(SourceStringTokenSchema),
@@ -118,6 +128,8 @@ const RegisterSourceEditRangesSchema = Schema.Struct({
 });
 
 const RdlSourceEditRangesSchema = Schema.Struct({
+	addrmapBodyEnd: Schema.optional(Schema.Number),
+	addrmapIndent: Schema.optional(Schema.String),
 	registers: Schema.Record({ key: Schema.String, value: RegisterSourceEditRangesSchema }),
 });
 

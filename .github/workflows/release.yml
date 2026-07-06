@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - "*"
+      - '*'
   release:
     types:
       - published
@@ -68,7 +68,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: dist
-          pattern: "*"
+          pattern: '*'
           merge-multiple: true
       - name: Publish release artifacts
         uses: softprops/action-gh-release@v2

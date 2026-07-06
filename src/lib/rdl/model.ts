@@ -79,10 +79,15 @@ export interface ResetSourceValue {
 }
 
 export interface RdlSourceEditRanges {
+	addrmapBodyEnd?: number;
+	addrmapIndent?: string;
 	registers: Record<string, RegisterSourceEditRanges>;
 }
 
 export interface RegisterSourceEditRanges {
+	fullRange?: SourceRange;
+	bodyEnd?: number;
+	bodyIndent?: string;
 	name?: SourceToken<string>;
 	title?: SourceToken<string>;
 	desc?: SourceToken<string>;
@@ -94,6 +99,12 @@ export interface RegisterSourceEditRanges {
 }
 
 export interface FieldSourceEditRanges {
+	fullRange?: SourceRange;
+	bodyEnd?: number;
+	bodyIndent?: string;
+	enumRange?: SourceRange;
+	enumBodyEnd?: number;
+	enumBodyIndent?: string;
 	name?: SourceToken<string>;
 	title?: SourceToken<string>;
 	desc?: SourceToken<string>;
@@ -106,6 +117,7 @@ export interface FieldSourceEditRanges {
 }
 
 export interface EnumValueSourceEditRanges {
+	fullRange?: SourceRange;
 	name?: SourceToken<string>;
 	value?: SourceToken<number>;
 	desc?: SourceToken<string>;

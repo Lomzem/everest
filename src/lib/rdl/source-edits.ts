@@ -1,5 +1,6 @@
 import type {
 	Access,
+	EnumValue,
 	EnumValueSourceEditRanges,
 	Field,
 	FieldSourceEditRanges,
@@ -30,12 +31,15 @@ interface Block {
 
 interface EnumBlock {
 	readonly name: string;
+	readonly start: number;
 	readonly bodyStart: number;
 	readonly bodyEnd: number;
+	readonly end: number;
 }
 
 interface EnumMemberBlock {
 	readonly name: string;
+	readonly fullRange: SourceRange;
 	readonly nameRange: SourceRange;
 	readonly valueRange: SourceRange;
 	readonly bodyStart?: number;
@@ -129,6 +133,7 @@ export function canEditEnumValueSourceProp(
 
 function buildSourceEditRanges(document: RdlDocument): RdlSourceEditRanges {
 	const text = document.source?.text ?? '';
+	const addrmap = findAddrmapBody(text);
 	const registerBlocks = collectRegisterBlocks(text);
 	const availableRegisterBlocks = new Map(
 		registerBlocks.map((block) => [block.instanceName, block]),
@@ -146,7 +151,11 @@ function buildSourceEditRanges(document: RdlDocument): RdlSourceEditRanges {
 		}
 	}
 
-	return { registers };
+	return {
+		addrmapBodyEnd: addrmap?.bodyEnd,
+		addrmapIndent: addrmap ? childIndentFor(text, addrmap.bodyStart, addrmap.bodyEnd) : undefined,
+		registers,
+	};
 }
 
 function buildRegisterRanges(
@@ -172,6 +181,9 @@ function buildRegisterRanges(
 	}
 
 	return {
+		fullRange: expandLeadingCommentRange(text, block.start, block.end),
+		bodyEnd: block.bodyEnd,
+		bodyIndent: childIndentFor(text, block.bodyStart, block.bodyEnd),
 		name: token(block.instanceRange, register.name),
 		title: sourceStringProperty(text, block, ['name'], register.title),
 		desc: sourceStringProperty(text, block, ['desc'], register.desc),
@@ -189,7 +201,24 @@ function buildFieldRanges(
 	registerBlock: Block,
 	field: Field,
 ): FieldSourceEditRanges {
+	const enumBlock =
+		field.enumName && field.values.length
+			? collectEnumBlocks(text, registerBlock.bodyStart, registerBlock.bodyEnd).find(
+					(block) => block.name === field.enumName,
+				)
+			: undefined;
+
 	return {
+		fullRange: expandLeadingCommentRange(text, fieldBlock.start, fieldBlock.end),
+		bodyEnd: fieldBlock.bodyEnd,
+		bodyIndent: childIndentFor(text, fieldBlock.bodyStart, fieldBlock.bodyEnd),
+		enumRange: enumBlock
+			? expandLeadingCommentRange(text, enumBlock.start, enumBlock.end)
+			: undefined,
+		enumBodyEnd: enumBlock?.bodyEnd,
+		enumBodyIndent: enumBlock
+			? childIndentFor(text, enumBlock.bodyStart, enumBlock.bodyEnd)
+			: undefined,
 		name: token(fieldBlock.instanceRange, field.name),
 		title: sourceStringProperty(text, fieldBlock, ['name'], field.title),
 		desc: sourceStringProperty(text, fieldBlock, ['desc'], field.desc),
@@ -225,6 +254,7 @@ function buildEnumValueRanges(text: string, registerBlock: Block, field: Field) 
 		const member = members.get(value.name);
 		if (!member) continue;
 		values[value.id] = {
+			fullRange: member.fullRange,
 			name: token(member.nameRange, value.name),
 			value: token(member.valueRange, value.value),
 			desc:
@@ -246,10 +276,19 @@ function applySourceEdits(
 	document: RdlDocument,
 ) {
 	const replacements: Replacement[] = [];
+	const deletedRanges: SourceRange[] = [];
+	const structuralReplacements = structuralSourceReplacements(sourceText, editRanges, document);
+	for (const replacement of structuralReplacements) {
+		replacements.push(replacement);
+		if (!replacement.text && replacement.range.start !== replacement.range.end) {
+			deletedRanges.push(replacement.range);
+		}
+	}
 
 	for (const register of document.registers) {
 		const ranges = editRanges.registers[register.id];
 		if (!ranges) continue;
+		if (deletedRanges.some((range) => containsRange(range, ranges.fullRange))) continue;
 
 		replaceString(replacements, ranges.name, register.name, rdlIdentifier);
 		replaceString(replacements, ranges.title, register.title, rdlString);
@@ -262,6 +301,7 @@ function applySourceEdits(
 		for (const field of register.fields) {
 			const fieldRanges = ranges.fields[field.id];
 			if (!fieldRanges) continue;
+			if (deletedRanges.some((range) => containsRange(range, fieldRanges.fullRange))) continue;
 
 			replaceString(replacements, fieldRanges.name, field.name, rdlIdentifier);
 			replaceString(replacements, fieldRanges.title, field.title, rdlString);
@@ -275,6 +315,7 @@ function applySourceEdits(
 			for (const value of field.values) {
 				const valueRanges = fieldRanges.values[value.id];
 				if (!valueRanges) continue;
+				if (deletedRanges.some((range) => containsRange(range, valueRanges.fullRange))) continue;
 
 				replaceString(replacements, valueRanges.name, value.name, rdlIdentifier);
 				replaceNumber(replacements, valueRanges.value, value.value, rdlInteger);
@@ -284,6 +325,147 @@ function applySourceEdits(
 	}
 
 	return applyReplacements(sourceText, replacements);
+}
+
+function structuralSourceReplacements(
+	sourceText: string,
+	editRanges: RdlSourceEditRanges,
+	document: RdlDocument,
+) {
+	const replacements: Replacement[] = [];
+	const currentRegisterIds = new Set(document.registers.map((register) => register.id));
+	const sourceRegisterIds = Object.keys(editRanges.registers);
+	if (
+		orderChanged(
+			sourceRegisterIds,
+			document.registers.map((register) => register.id),
+		)
+	) {
+		for (const ranges of Object.values(editRanges.registers)) {
+			if (ranges.fullRange) replacements.push({ range: ranges.fullRange, text: '' });
+		}
+		if (editRanges.addrmapBodyEnd !== undefined) {
+			replacements.push({
+				range: { start: editRanges.addrmapBodyEnd, end: editRanges.addrmapBodyEnd },
+				text: `\n${document.registers
+					.map((register) => sourceRegister(register, editRanges.addrmapIndent ?? '\t'))
+					.join('\n')}`,
+			});
+		}
+		return replacements;
+	}
+
+	for (const [registerId, ranges] of Object.entries(editRanges.registers)) {
+		if (!currentRegisterIds.has(registerId) && ranges.fullRange) {
+			replacements.push({ range: ranges.fullRange, text: '' });
+		}
+	}
+
+	for (const register of document.registers) {
+		const ranges = editRanges.registers[register.id];
+		if (!ranges) {
+			const insertAt = editRanges.addrmapBodyEnd;
+			if (insertAt !== undefined) {
+				replacements.push({
+					range: { start: insertAt, end: insertAt },
+					text: `\n${sourceRegister(register, editRanges.addrmapIndent ?? '\t')}`,
+				});
+			}
+			continue;
+		}
+
+		const sourceFieldIds = Object.keys(ranges.fields);
+		if (
+			orderChanged(
+				sourceFieldIds,
+				register.fields.map((field) => field.id),
+			)
+		) {
+			for (const fieldRanges of Object.values(ranges.fields)) {
+				if (fieldRanges.enumRange) replacements.push({ range: fieldRanges.enumRange, text: '' });
+				if (fieldRanges.fullRange) replacements.push({ range: fieldRanges.fullRange, text: '' });
+			}
+			if (ranges.bodyEnd !== undefined) {
+				replacements.push({
+					range: { start: ranges.bodyEnd, end: ranges.bodyEnd },
+					text: `\n${register.fields
+						.flatMap((field) => [
+							...(field.values.length && field.enumName
+								? [sourceEnum(field, ranges.bodyIndent ?? '\t\t')]
+								: []),
+							sourceField(register, field, ranges.bodyIndent ?? '\t\t'),
+						])
+						.join('\n')}`,
+				});
+			}
+			continue;
+		}
+
+		const currentFieldIds = new Set(register.fields.map((field) => field.id));
+		for (const [fieldId, fieldRanges] of Object.entries(ranges.fields)) {
+			if (!currentFieldIds.has(fieldId) && fieldRanges.fullRange) {
+				replacements.push({ range: fieldRanges.fullRange, text: '' });
+			}
+		}
+
+		for (const field of register.fields) {
+			const fieldRanges = ranges.fields[field.id];
+			if (!fieldRanges) {
+				const insertAt = ranges.bodyEnd;
+				if (insertAt !== undefined) {
+					replacements.push({
+						range: { start: insertAt, end: insertAt },
+						text: `\n${sourceField(register, field, ranges.bodyIndent ?? '\t\t')}`,
+					});
+				}
+				continue;
+			}
+
+			const currentValueIds = new Set(field.values.map((value) => value.id));
+			for (const [valueId, valueRanges] of Object.entries(fieldRanges.values)) {
+				if (!currentValueIds.has(valueId) && valueRanges.fullRange) {
+					replacements.push({ range: valueRanges.fullRange, text: '' });
+				}
+			}
+
+			if (field.values.length && field.enumName && !fieldRanges.enumRange) {
+				const insertAt = fieldRanges.fullRange?.start ?? fieldRanges.bodyEnd;
+				if (insertAt !== undefined) {
+					replacements.push({
+						range: { start: insertAt, end: insertAt },
+						text: `${sourceEnum(field, ranges.bodyIndent ?? '\t\t')}\n`,
+					});
+				}
+			}
+
+			if (field.values.length && field.enumName && !fieldRanges.enumName && fieldRanges.bodyEnd) {
+				replacements.push({
+					range: { start: fieldRanges.bodyEnd, end: fieldRanges.bodyEnd },
+					text: `\n${fieldRanges.bodyIndent ?? '\t\t\t'}encode = ${rdlIdentifier(field.enumName)};`,
+				});
+			}
+
+			for (const value of field.values) {
+				if (fieldRanges.values[value.id] || !fieldRanges.enumBodyEnd) continue;
+				replacements.push({
+					range: { start: fieldRanges.enumBodyEnd, end: fieldRanges.enumBodyEnd },
+					text: `\n${sourceEnumValue(value, fieldRanges.enumBodyIndent ?? '\t\t\t')}`,
+				});
+			}
+		}
+	}
+
+	return replacements;
+}
+
+function orderChanged(sourceIds: string[], currentIds: string[]) {
+	const knownCurrentIds = currentIds.filter((id) => sourceIds.includes(id));
+	const remainingSourceIds = sourceIds.filter((id) => currentIds.includes(id));
+	return knownCurrentIds.join('\0') !== remainingSourceIds.join('\0');
+}
+
+function containsRange(container: SourceRange, range: SourceRange | undefined) {
+	return Boolean(range && container.start <= range.start && range.end <= container.end);
 }
 
 function replaceString(
@@ -454,6 +636,46 @@ function collectRegisterBlocks(text: string) {
 	return blocks;
 }
 
+function findAddrmapBody(text: string) {
+	let index = 0;
+
+	while (index < text.length) {
+		const skipped = skipNonCode(text, index, text.length);
+		if (skipped !== index) {
+			index = skipped;
+			continue;
+		}
+
+		const id = readIdentifier(text, index, text.length);
+		if (!id) {
+			index++;
+			continue;
+		}
+
+		if (id.value !== 'addrmap') {
+			index = id.end;
+			continue;
+		}
+
+		const name = readIdentifier(text, skipTrivia(text, id.end, text.length), text.length);
+		const openBrace = findNextSignificant(text, name?.end ?? id.end, text.length, '{');
+		if (openBrace === -1) {
+			index = id.end;
+			continue;
+		}
+
+		const closeBrace = findMatchingBrace(text, openBrace, text.length);
+		if (closeBrace === -1) {
+			index = openBrace + 1;
+			continue;
+		}
+
+		return { bodyStart: openBrace + 1, bodyEnd: closeBrace };
+	}
+
+	return undefined;
+}
+
 function collectFieldBlocks(text: string, start: number, end: number) {
 	const blocks: Block[] = [];
 	let index = start;
@@ -519,14 +741,16 @@ function collectEnumMemberBlocks(text: string, start: number, end: number) {
 		}
 
 		const statementEnd = findNextSignificant(text, cursor, end, ';');
+		const fullEnd = statementEnd === -1 ? cursor + 1 : statementEnd + 1;
 		members.push({
 			name: name.value,
+			fullRange: expandLeadingCommentRange(text, name.start, fullEnd),
 			nameRange: { start: name.start, end: name.end },
 			valueRange,
 			bodyStart,
 			bodyEnd,
 		});
-		index = statementEnd === -1 ? cursor + 1 : statementEnd + 1;
+		index = fullEnd;
 	}
 
 	return members;
@@ -675,7 +899,14 @@ function findEnumBlock(
 			continue;
 		}
 
-		return { name: enumName.value, bodyStart: openBrace + 1, bodyEnd: closeBrace };
+		const statementEnd = findNextSignificant(text, closeBrace + 1, end, ';');
+		return {
+			name: enumName.value,
+			start: id.start,
+			bodyStart: openBrace + 1,
+			bodyEnd: closeBrace,
+			end: statementEnd === -1 ? closeBrace + 1 : statementEnd + 1,
+		};
 	}
 
 	return undefined;
@@ -876,6 +1107,96 @@ function trimRange(text: string, range: SourceRange) {
 	while (start < end && /\s/.test(text[start])) start++;
 	while (end > start && /\s/.test(text[end - 1])) end--;
 	return { start, end };
+}
+
+function expandLeadingCommentRange(text: string, start: number, end: number): SourceRange {
+	let cursor = lineStart(text, start);
+
+	while (cursor > 0) {
+		const previousEnd = cursor - 1;
+		const previousStart = lineStart(text, previousEnd);
+		const line = text.slice(previousStart, previousEnd).trim();
+		if (!line.startsWith('//')) break;
+		cursor = previousStart;
+	}
+
+	return { start: cursor, end };
+}
+
+function lineStart(text: string, index: number) {
+	const newline = text.lastIndexOf('\n', Math.max(0, index - 1));
+	return newline === -1 ? 0 : newline + 1;
+}
+
+function childIndentFor(text: string, start: number, end: number) {
+	let index = start;
+	while (index < end) {
+		const newline = text.indexOf('\n', index);
+		if (newline === -1 || newline + 1 >= end) break;
+		const lineStartIndex = newline + 1;
+		const lineEnd = text.indexOf('\n', lineStartIndex);
+		const rawLine = text.slice(lineStartIndex, lineEnd === -1 ? end : lineEnd);
+		if (rawLine.trim()) return rawLine.match(/^\s*/)?.[0] ?? '';
+		index = lineStartIndex;
+	}
+	return '\t';
+}
+
+function sourceRegister(register: Register, baseIndent: string) {
+	const childIndent = `${baseIndent}\t`;
+	const lines = [
+		`${baseIndent}reg {`,
+		register.group ? `${childIndent}doc_group = ${rdlString(register.group)};` : '',
+		`${childIndent}default sw = ${rdlAccess(register.sw)};`,
+		`${childIndent}default hw = ${rdlAccess(register.hw)};`,
+		`${childIndent}name = ${rdlString(register.title)};`,
+		`${childIndent}desc = ${rdlString(register.desc)};`,
+		...register.fields.flatMap((field) => [
+			...(field.values.length && field.enumName ? [sourceEnum(field, childIndent)] : []),
+			sourceField(register, field, childIndent),
+		]),
+		`${baseIndent}} ${rdlIdentifier(register.name)} @ ${rdlAddress(register.address)};`,
+	];
+	return lines.filter(Boolean).join('\n');
+}
+
+function sourceEnum(field: Field, baseIndent: string) {
+	const childIndent = `${baseIndent}\t`;
+	return [
+		`${baseIndent}enum ${rdlIdentifier(field.enumName ?? `${field.name}_e`)} {`,
+		...field.values.map((value) => sourceEnumValue(value, childIndent)),
+		`${baseIndent}};`,
+	].join('\n');
+}
+
+function sourceEnumValue(value: EnumValue, baseIndent: string) {
+	return `${baseIndent}${rdlIdentifier(value.name)} = ${rdlInteger(value.value)} {desc = ${rdlString(
+		value.desc,
+	)};};`;
+}
+
+function sourceField(register: Register, field: Field, baseIndent: string) {
+	const childIndent = `${baseIndent}\t`;
+	const lines = [
+		`${baseIndent}field {`,
+		`${childIndent}name = ${rdlString(field.title)};`,
+		`${childIndent}desc = ${rdlString(field.desc)};`,
+		`${childIndent}sw = ${rdlAccess(field.sw)};`,
+		`${childIndent}hw = ${rdlAccess(field.hw)};`,
+		field.values.length && field.enumName
+			? `${childIndent}encode = ${rdlIdentifier(field.enumName)};`
+			: '',
+		`${childIndent}reset = ${rdlReset(field)};`,
+		`${baseIndent}} ${rdlIdentifier(field.name)}${sourceRange(field, register.width)};`,
+	];
+	return lines.filter(Boolean).join('\n');
+}
+
+function sourceRange(field: Field, registerWidth: number) {
+	const max = Math.max(0, registerWidth - 1);
+	const msb = Math.min(Math.max(0, Math.trunc(field.msb)), max);
+	const lsb = Math.min(Math.max(0, Math.trunc(field.lsb)), max);
+	return `[${msb}:${lsb}]`;
 }
 
 function rdlAccess(access: Access) {

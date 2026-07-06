@@ -96,7 +96,7 @@ export class EditorState {
 	readOnly = $derived(Boolean(this.document.source?.readOnly));
 	readOnlyReason = $derived(this.document.source?.readOnlyReason ?? '');
 	sourceBacked = $derived(Boolean(this.document.source));
-	structureReadOnly = $derived(this.readOnly || this.sourceBacked);
+	structureReadOnly = $derived(this.readOnly);
 	selectedRegister = $derived(
 		this.document.registers.find((register) => register.id === this.selectedRegisterId) ??
 			this.document.registers[0] ??

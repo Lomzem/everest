@@ -61,7 +61,9 @@
 	{#if ui.expandedFieldIds.has(field.id)}
 		<div class="border-t border-border bg-muted/50 px-8 py-5">
 			<div class="space-y-4">
-				<div class="grid grid-cols-[1fr_1fr_96px_96px_minmax(200px,1fr)_120px_120px] items-end gap-3">
+				<div
+					class="grid grid-cols-[1fr_1fr_96px_96px_minmax(200px,1fr)_120px_120px] items-end gap-3"
+				>
 					<label class="space-y-1">
 						<span class="text-base font-medium text-muted-foreground">Name</span>
 						<input
@@ -134,7 +136,9 @@
 									</Select.Content>
 								</Select.Root>
 							{:else}
-								<span class="flex h-9 overflow-hidden rounded-md border border-input bg-background focus-within:border-primary">
+								<span
+									class="flex h-9 overflow-hidden rounded-md border border-input bg-background focus-within:border-primary"
+								>
 									{#if valuePrefix(ui.valueMode)}
 										<span
 											class="flex items-center border-r border-border bg-muted px-2 font-mono text-base text-muted-foreground"
