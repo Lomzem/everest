@@ -6,7 +6,7 @@ import { deriveIdentifier, formatEditableValue, formatValue, parseEditableValue 
 import { buildFolderChildren, normalizeHierarchyGroups } from './hierarchy';
 import { createBlankDocument, createDefaultField, type Field, type Register } from './model';
 import { decodeRdlDocument } from './schema';
-import { enumValueErrors, identifierErrors } from './validation';
+import { enumValueErrors, identifierErrors, resetErrors } from './validation';
 
 const createTestRegister = (overrides: Partial<Register> = {}): Register => ({
 	id: 'test-register',
@@ -94,6 +94,21 @@ describe('RDL domain helpers', () => {
 			'Value must fit in 2 bits (0x0 to 0x3).',
 			'Duplicate enum value.',
 		]);
+	});
+
+	it('reports enum reset values that do not match an encoding', () => {
+		const field: Field = {
+			...createDefaultField(),
+			reset: 2,
+			enumName: 'mode_e',
+			values: [
+				{ id: 'off', name: 'OFF', value: 0, desc: '' },
+				{ id: 'on', name: 'ON', value: 1, desc: '' },
+			],
+		};
+
+		expect(resetErrors(field, 'hex')).toEqual(['Reset does not match an enum encoding.']);
+		expect(resetErrors({ ...field, reset: 1, resetEnumValueId: 'on' }, 'hex')).toEqual([]);
 	});
 
 	it('reports invalid identifiers', () => {

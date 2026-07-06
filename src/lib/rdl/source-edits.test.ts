@@ -142,6 +142,32 @@ describe('source-safe edit ranges', () => {
 		expect(content).toContain('addrmap top');
 	});
 
+	it('repairs symbolic reset values that do not match existing enum members', () => {
+		const base = sourceDocument();
+		const document = prepareSourceBackedDocument({
+			...base,
+			source: {
+				...base.source!,
+				text: base.source!.text.replace('reset = mode_e::OFF;', 'reset = mode_e::MISSING;'),
+			},
+		});
+		const register = document.registers[0];
+		const field = register.fields[0];
+		const edited: RdlDocument = {
+			...document,
+			registers: [
+				{
+					...register,
+					fields: [{ ...field, reset: 1, resetEnumValueId: 'control-mode-on' }],
+				},
+			],
+		};
+
+		expect(canEditFieldSourceProp(document, 'control', 'control-mode', 'reset')).toBe(true);
+		expect(field.resetEnumValueId).toBeUndefined();
+		expect(sourceContentFor(edited)).toContain('reset = mode_e::ON;');
+	});
+
 	it('inserts new fields into source-backed registers', () => {
 		const document = prepareSourceBackedDocument(sourceDocument());
 		const register = document.registers[0];

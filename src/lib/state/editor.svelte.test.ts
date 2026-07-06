@@ -123,6 +123,39 @@ describe('EditorState derived names', () => {
 			'HIGH',
 		]);
 	});
+
+	it('auto-selects matching enum reset values from numeric edits', async () => {
+		const state = new EditorState();
+		state.applyDocument(enumResetDocument(), '/tmp/top.rdl', false);
+		state.selectRegister('control');
+
+		state.updateResetDraft('control-mode', '1');
+
+		expect(state.selectedRegister.fields[0]).toMatchObject({
+			reset: 1,
+			resetEnumValueId: 'control-mode-on',
+		});
+	});
+
+	it('adds a reset encoding for numeric enum reset mismatches', async () => {
+		vi.spyOn(Date, 'now').mockReturnValue(42);
+		const state = new EditorState();
+		state.applyDocument(enumResetDocument(), '/tmp/top.rdl', false);
+		state.selectRegister('control');
+		state.updateResetDraft('control-mode', '2');
+
+		await state.addEnumValueForReset('control-mode');
+
+		expect(state.selectedRegister.fields[0]).toMatchObject({
+			reset: 2,
+			resetEnumValueId: 'enum-42',
+		});
+		expect(state.selectedRegister.fields[0].values.at(-1)).toMatchObject({
+			id: 'enum-42',
+			name: 'VALUE_2',
+			value: 2,
+		});
+	});
 });
 
 function sourceDocument(): RdlDocument {
@@ -168,5 +201,27 @@ function sourceDocument(): RdlDocument {
 			readOnly: true,
 			readOnlyReason: 'Source-safe edit ranges are not available yet.',
 		},
+	};
+}
+
+function enumResetDocument(): RdlDocument {
+	return {
+		...sourceDocument(),
+		registers: [
+			{
+				...sourceDocument().registers[0],
+				fields: [
+					{
+						...sourceDocument().registers[0].fields[0],
+						enumName: 'mode_e',
+						values: [
+							{ id: 'control-mode-off', name: 'OFF', value: 0, desc: '' },
+							{ id: 'control-mode-on', name: 'ON', value: 1, desc: '' },
+						],
+					},
+				],
+			},
+		],
+		source: undefined,
 	};
 }

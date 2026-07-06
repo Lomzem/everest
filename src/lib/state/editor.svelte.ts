@@ -692,9 +692,12 @@ export class EditorState {
 		if (!this.canEditField(fieldId, 'reset')) return;
 		ui.updateNumericDraft(`reset:${fieldId}`, rawValue);
 		if (rawValue.trim()) {
+			const reset = parseEditableValue(rawValue, ui.valueMode);
+			const field = this.selectedRegister.fields.find((item) => item.id === fieldId);
+			const resetEnumValueId = field?.values.find((value) => value.value === reset)?.id;
 			this.updateField(fieldId, {
-				reset: parseEditableValue(rawValue, ui.valueMode),
-				resetEnumValueId: undefined,
+				reset,
+				resetEnumValueId,
 			});
 		}
 	}
@@ -715,6 +718,46 @@ export class EditorState {
 		if (!enumValue) return;
 		ui.clearNumericDraft(`reset:${fieldId}`);
 		this.updateField(fieldId, { reset: enumValue.value, resetEnumValueId: enumValue.id });
+	}
+
+	async addEnumValueForReset(fieldId: string) {
+		if (!this.canEditStructure()) return;
+		const field = this.selectedRegister.fields.find((item) => item.id === fieldId);
+		if (!field) return;
+
+		const nextId = `enum-${Date.now()}`;
+		const nextValue = field.reset;
+		this.document = {
+			...this.document,
+			registers: this.document.registers.map((register) => {
+				if (register.id !== this.selectedRegister.id) return register;
+				return {
+					...register,
+					fields: register.fields.map((field) => {
+						if (field.id !== fieldId) return field;
+						return {
+							...field,
+							enumName: field.enumName || `${field.name}_e`,
+							resetEnumValueId: nextId,
+							values: [
+								...field.values,
+								{
+									id: nextId,
+									name: `VALUE_${nextValue}`,
+									value: nextValue,
+									desc: 'Describe this encoding.',
+								},
+							],
+						};
+					}),
+				};
+			}),
+		};
+		ui.clearNumericDraft(`reset:${fieldId}`);
+		this.markDirty();
+
+		await tick();
+		focusAndSelect(`[data-enum-variant-name-input="${fieldId}:${nextId}"]`);
 	}
 
 	clearResetEnumValue(fieldId: string) {
