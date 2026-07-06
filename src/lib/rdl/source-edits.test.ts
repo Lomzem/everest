@@ -142,6 +142,14 @@ describe('source-safe edit ranges', () => {
 		expect(content).toContain('addrmap top');
 	});
 
+	it('patches the addrmap name in source-backed documents', () => {
+		const document = prepareSourceBackedDocument(sourceDocument());
+		const content = sourceContentFor({ ...document, addrmapName: 'video_top' });
+
+		expect(content).toContain('addrmap video_top');
+		expect(content).not.toContain('addrmap top');
+	});
+
 	it('repairs symbolic reset values that do not match existing enum members', () => {
 		const base = sourceDocument();
 		const document = prepareSourceBackedDocument({

@@ -58,7 +58,7 @@ export function prepareSourceBackedDocument(document: RdlDocument): RdlDocument 
 	if (!document.source) return document;
 
 	const editRanges = buildSourceEditRanges(document);
-	const hasRanges = Object.keys(editRanges.registers).length > 0;
+	const hasRanges = Boolean(editRanges.addrmapName || Object.keys(editRanges.registers).length);
 
 	return {
 		...document,
@@ -184,6 +184,7 @@ function buildSourceEditRanges(document: RdlDocument): RdlSourceEditRanges {
 	}
 
 	return {
+		addrmapName: addrmap?.name ? token(addrmap.name.range, document.addrmapName) : undefined,
 		addrmapBodyEnd: addrmap?.bodyEnd,
 		addrmapIndent: addrmap ? childIndentFor(text, addrmap.bodyStart, addrmap.bodyEnd) : undefined,
 		registers,
@@ -315,6 +316,7 @@ function applySourceEdits(
 	for (const replacement of structuralReplacements) {
 		replacements.push(replacement);
 	}
+	replaceString(replacements, editRanges.addrmapName, document.addrmapName, rdlIdentifier);
 
 	for (const register of document.registers) {
 		const ranges = editRanges.registers[register.id];
@@ -772,7 +774,16 @@ function findAddrmapBody(text: string) {
 			continue;
 		}
 
-		return { bodyStart: openBrace + 1, bodyEnd: closeBrace };
+		return {
+			name: name
+				? {
+						value: name.value,
+						range: { start: name.start, end: name.end },
+					}
+				: undefined,
+			bodyStart: openBrace + 1,
+			bodyEnd: closeBrace,
+		};
 	}
 
 	return undefined;

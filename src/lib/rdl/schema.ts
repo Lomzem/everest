@@ -128,6 +128,7 @@ const RegisterSourceEditRangesSchema = Schema.Struct({
 });
 
 const RdlSourceEditRangesSchema = Schema.Struct({
+	addrmapName: Schema.optional(SourceStringTokenSchema),
 	addrmapBodyEnd: Schema.optional(Schema.Number),
 	addrmapIndent: Schema.optional(Schema.String),
 	registers: Schema.Record({ key: Schema.String, value: RegisterSourceEditRangesSchema }),

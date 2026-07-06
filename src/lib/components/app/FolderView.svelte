@@ -7,7 +7,9 @@
 	import EditorBreadcrumbs from './EditorBreadcrumbs.svelte';
 
 	let canRenameSelectedFolder = $derived(
-		!editor.structureReadOnly && editor.selectedFolder?.id !== rootBlockId,
+		editor.selectedFolder?.id === rootBlockId
+			? editor.canEditAddrmapName()
+			: !editor.structureReadOnly,
 	);
 </script>
 

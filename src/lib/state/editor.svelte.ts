@@ -352,6 +352,13 @@ export class EditorState {
 		return this.canEditRegister(this.selectedRegister.id, prop);
 	}
 
+	canEditAddrmapName() {
+		return (
+			!this.readOnly &&
+			(!this.document.source || Boolean(this.document.source.editRanges?.addrmapName))
+		);
+	}
+
 	canEditField(fieldId: string, prop: EditableFieldProp) {
 		return (
 			!this.readOnly &&
@@ -656,6 +663,10 @@ export class EditorState {
 
 	updateGroupLabel(groupId: string, label: string) {
 		if (!this.canEditStructure()) return;
+		if (groupId === rootBlockId) {
+			this.updateAddrmapName(label);
+			return;
+		}
 		const group = this.document.hierarchyGroups.find((item) => item.id === groupId);
 		if (!group) return;
 
@@ -679,6 +690,11 @@ export class EditorState {
 		) {
 			this.selectedGroupPath = `${nextPath}${this.selectedGroupPath.slice(previousPath.length)}`;
 		}
+	}
+
+	updateAddrmapName(addrmapName: string) {
+		if (!this.canEditAddrmapName()) return;
+		this.commitDocumentChange({ ...this.document, addrmapName });
 	}
 
 	async addRegister(

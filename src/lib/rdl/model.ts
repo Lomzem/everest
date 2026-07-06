@@ -79,6 +79,7 @@ export interface ResetSourceValue {
 }
 
 export interface RdlSourceEditRanges {
+	addrmapName?: SourceToken<string>;
 	addrmapBodyEnd?: number;
 	addrmapIndent?: string;
 	registers: Record<string, RegisterSourceEditRanges>;

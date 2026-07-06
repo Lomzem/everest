@@ -83,6 +83,29 @@ describe('EditorState derived names', () => {
 		});
 	});
 
+	it('renames the addrmap through the root folder label', () => {
+		const state = new EditorState();
+		state.newDocument();
+		state.selectGroup('');
+
+		state.updateGroupLabel('document-root', 'video_top');
+
+		expect(state.document.addrmapName).toBe('video_top');
+		expect(state.selectedFolder?.label).toBe('video_top');
+		expect(state.canUndo).toBe(true);
+	});
+
+	it('allows source-backed addrmap rename when the source token is known', () => {
+		const state = new EditorState();
+		state.applyDocument(prepareSourceBackedDocument(sourceDocument()), '/tmp/top.rdl', false);
+
+		expect(state.canEditAddrmapName()).toBe(true);
+
+		state.updateAddrmapName('video_top');
+
+		expect(state.document.addrmapName).toBe('video_top');
+	});
+
 	it('sorts enum values by numeric value after commit', async () => {
 		let now = 1;
 		vi.spyOn(Date, 'now').mockImplementation(() => now++);

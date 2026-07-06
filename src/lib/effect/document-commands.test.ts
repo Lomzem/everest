@@ -83,7 +83,7 @@ describe('document command effects', () => {
 		expect(result?.document.source).toMatchObject({
 			rootPath: '/tmp/imported.rdl',
 			text: 'addrmap imported {};',
-			readOnly: true,
+			readOnly: false,
 		});
 	});
 
@@ -171,6 +171,7 @@ describe('document command effects', () => {
 		const field = register.fields[0];
 		const edited: RdlDocument = {
 			...document,
+			addrmapName: 'renamed_source',
 			registers: [
 				{
 					...register,
@@ -197,6 +198,7 @@ describe('document command effects', () => {
 		);
 
 		expect(result).toEqual({ path: '/tmp/source.rdl', saved: true });
+		expect(saved[0]).toContain('addrmap renamed_source');
 		expect(saved[0]).toContain('name = "Control Next";');
 		expect(saved[0]).toContain('reset = 1;');
 		expect(saved[0]).toContain('} control @ 0x4;');
