@@ -263,6 +263,32 @@ describe('source-safe edit ranges', () => {
 		expect(content).not.toContain('ON = 1 {desc = "On";};');
 	});
 
+	it('rewrites source-backed enum members when they are reordered', () => {
+		const document = prepareSourceBackedDocument(sourceDocument());
+		const register = document.registers[0];
+		const field = register.fields[0];
+		const edited: RdlDocument = {
+			...document,
+			registers: [
+				{
+					...register,
+					fields: [
+						{
+							...field,
+							values: [field.values[1], field.values[0]],
+						},
+					],
+				},
+			],
+		};
+
+		const content = sourceContentFor(edited);
+
+		expect(content.indexOf('ON = 1 {desc = "On";};')).toBeLessThan(
+			content.indexOf('OFF = 0 {desc = "Off";};'),
+		);
+	});
+
 	it('keeps existing source properties read-only when their token ranges are missing', () => {
 		const document = prepareSourceBackedDocument({
 			...sourceDocument(),

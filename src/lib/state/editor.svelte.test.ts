@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RdlDocument } from '$lib/rdl/model';
 import { prepareSourceBackedDocument } from '$lib/rdl/source-edits';
 import { EditorState } from './editor.svelte';
 
 describe('EditorState derived names', () => {
 	beforeEach(() => {
+		vi.restoreAllMocks();
 		Object.defineProperty(globalThis, 'document', {
 			configurable: true,
 			value: {
@@ -80,6 +81,47 @@ describe('EditorState derived names', () => {
 			value: 1,
 			desc: 'Enabled state.',
 		});
+	});
+
+	it('sorts enum values by numeric value after commit', async () => {
+		let now = 1;
+		vi.spyOn(Date, 'now').mockImplementation(() => now++);
+		const state = new EditorState();
+		state.newDocument();
+		await state.addRegister('');
+		const fieldId = state.selectedRegister.fields[0].id;
+		await state.addEnumValue(fieldId);
+		await state.addEnumValue(fieldId);
+		const [first, second] = state.selectedRegister.fields[0].values;
+
+		state.updateEnumValue(fieldId, first.id, { name: 'HIGH', value: 3 });
+		state.updateEnumValue(fieldId, second.id, { name: 'LOW', value: 1 });
+		await state.commitEnumNumericValue(fieldId, second.id);
+
+		expect(state.selectedRegister.fields[0].values.map((value) => value.name)).toEqual([
+			'LOW',
+			'HIGH',
+		]);
+	});
+
+	it('sorts source-backed enum values by numeric value after commit', async () => {
+		let now = 1;
+		vi.spyOn(Date, 'now').mockImplementation(() => now++);
+		const state = new EditorState();
+		state.applyDocument(prepareSourceBackedDocument(sourceDocument()), '/tmp/top.rdl', false);
+		state.selectRegister('control');
+		await state.addEnumValue('control-mode');
+		await state.addEnumValue('control-mode');
+		const [first, second] = state.selectedRegister.fields[0].values;
+
+		state.updateEnumValue('control-mode', first.id, { name: 'HIGH', value: 3 });
+		state.updateEnumValue('control-mode', second.id, { name: 'LOW', value: 1 });
+		await state.commitEnumNumericValue('control-mode', second.id);
+
+		expect(state.selectedRegister.fields[0].values.map((value) => value.name)).toEqual([
+			'LOW',
+			'HIGH',
+		]);
 	});
 });
 

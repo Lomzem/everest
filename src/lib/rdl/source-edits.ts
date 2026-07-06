@@ -453,8 +453,15 @@ function structuralSourceReplacements(
 				continue;
 			}
 
+			const rewrittenEnumRange = enumOrderChanged(
+				Object.keys(fieldRanges.values),
+				field.values.map((value) => value.id),
+			)
+				? rewriteEnumMembers(replacements, fieldRanges, field)
+				: undefined;
 			const currentValueIds = new Set(field.values.map((value) => value.id));
 			for (const [valueId, valueRanges] of Object.entries(fieldRanges.values)) {
+				if (containsRange(rewrittenEnumRange, valueRanges.fullRange)) continue;
 				if (!currentValueIds.has(valueId) && valueRanges.fullRange) {
 					replacements.push({ range: valueRanges.fullRange, text: '' });
 				}
@@ -478,6 +485,7 @@ function structuralSourceReplacements(
 			}
 
 			for (const value of field.values) {
+				if (rewrittenEnumRange) continue;
 				if (fieldRanges.values[value.id] || !fieldRanges.enumBodyEnd) continue;
 				replacements.push({
 					range: { start: fieldRanges.enumBodyEnd, end: fieldRanges.enumBodyEnd },
@@ -490,14 +498,44 @@ function structuralSourceReplacements(
 	return replacements;
 }
 
+function enumOrderChanged(sourceIds: string[], currentIds: string[]) {
+	if (sourceIds.length === 0) return false;
+	return orderChanged(sourceIds, currentIds);
+}
+
+function rewriteEnumMembers(
+	replacements: Replacement[],
+	fieldRanges: FieldSourceEditRanges,
+	field: Field,
+) {
+	const ranges = Object.values(fieldRanges.values)
+		.map((valueRanges) => valueRanges.fullRange)
+		.filter((range): range is SourceRange => Boolean(range));
+	if (!ranges.length) return undefined;
+
+	const range = {
+		start: Math.min(...ranges.map((item) => item.start)),
+		end: Math.max(...ranges.map((item) => item.end)),
+	};
+	replacements.push({
+		range,
+		text: field.values
+			.map((value) => sourceEnumValue(value, fieldRanges.enumBodyIndent ?? '\t\t\t'))
+			.join('\n'),
+	});
+	return range;
+}
+
 function orderChanged(sourceIds: string[], currentIds: string[]) {
 	const knownCurrentIds = currentIds.filter((id) => sourceIds.includes(id));
 	const remainingSourceIds = sourceIds.filter((id) => currentIds.includes(id));
 	return knownCurrentIds.join('\0') !== remainingSourceIds.join('\0');
 }
 
-function containsRange(container: SourceRange, range: SourceRange | undefined) {
-	return Boolean(range && container.start <= range.start && range.end <= container.end);
+function containsRange(container: SourceRange | undefined, range: SourceRange | undefined) {
+	return Boolean(
+		container && range && container.start <= range.start && range.end <= container.end,
+	);
 }
 
 function replaceString(

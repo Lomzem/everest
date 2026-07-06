@@ -761,13 +761,11 @@ export class EditorState {
 		}
 		ui.clearNumericDraft(draftKey);
 
-		if (!this.document.source) {
-			this.document = {
-				...this.document,
-				registers: sortFieldEnumValues(this.document.registers, this.selectedRegister.id, fieldId),
-			};
-			this.markDirty();
-		}
+		this.document = {
+			...this.document,
+			registers: sortFieldEnumValues(this.document.registers, this.selectedRegister.id, fieldId),
+		};
+		this.markDirty();
 
 		if (!keepFocus) return;
 		await tick();
