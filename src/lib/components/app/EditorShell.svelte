@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Resizable from '$lib/components/ui/resizable';
+	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import FolderView from './FolderView.svelte';
 	import HierarchySidebar from './HierarchySidebar.svelte';
 	import RegisterEditor from './RegisterEditor.svelte';
@@ -18,13 +19,13 @@
 	<div class="flex min-h-0 flex-1">
 		{#if ui.leftCollapsed}
 			<HierarchySidebar />
-			<main class="min-w-0 flex-1 overflow-auto bg-background">
+			<ScrollArea class="min-w-0 flex-1 bg-background">
 				{#if editor.selectedKind === 'folder' && editor.selectedFolder}
 					<FolderView />
 				{:else}
 					<RegisterEditor />
 				{/if}
-			</main>
+			</ScrollArea>
 		{:else}
 			<Resizable.PaneGroup direction="horizontal" autoSaveId="editor-shell-layout">
 				<Resizable.Pane defaultSize={22} minSize={14} maxSize={40}>
@@ -32,13 +33,13 @@
 				</Resizable.Pane>
 				<Resizable.Handle withHandle />
 				<Resizable.Pane minSize={50}>
-					<main class="h-full min-w-0 overflow-auto bg-background">
+					<ScrollArea class="h-full min-w-0 bg-background">
 						{#if editor.selectedKind === 'folder' && editor.selectedFolder}
 							<FolderView />
 						{:else}
 							<RegisterEditor />
 						{/if}
-					</main>
+					</ScrollArea>
 				</Resizable.Pane>
 			</Resizable.PaneGroup>
 		{/if}

@@ -13,6 +13,7 @@
 		X,
 	} from '@lucide/svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { rootBlockId } from '$lib/rdl/hierarchy';
 	import { editor } from '$lib/state/editor.svelte';
 	import { ui } from '$lib/state/ui.svelte';
@@ -93,65 +94,67 @@
 			</label>
 		</div>
 
-		<div class="min-h-0 flex-1 overflow-auto p-2 text-base">
-			<div
-				class={`group flex items-center gap-1 rounded-md ${
-					editor.selectedKind === 'folder' && editor.selectedGroupPath === ''
-						? 'bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring'
-						: ui.dragOverGroupId === rootBlockId
-							? 'bg-sidebar-accent/70 ring-1 ring-sidebar-ring'
-							: ''
-				}`}
-				ondragover={(event) => {
-					if (!editor.structureReadOnly) ui.dragRegisterOverGroup(event, rootBlockId);
-				}}
-				ondragleave={() => {
-					if (ui.dragOverGroupId === rootBlockId) ui.dragOverGroupId = '';
-				}}
-				ondrop={(event) => {
-					if (!editor.structureReadOnly) editor.dropRegisterOnRoot(event);
-				}}
-				role="presentation"
-			>
-				<button
-					class="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-					onclick={() => ui.toggleBlock(rootBlockId)}
-					title="Toggle addrmap"
+		<ScrollArea class="min-h-0 flex-1 text-base">
+			<div class="p-2">
+				<div
+					class={`group flex items-center gap-1 rounded-md ${
+						editor.selectedKind === 'folder' && editor.selectedGroupPath === ''
+							? 'bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring'
+							: ui.dragOverGroupId === rootBlockId
+								? 'bg-sidebar-accent/70 ring-1 ring-sidebar-ring'
+								: ''
+					}`}
+					ondragover={(event) => {
+						if (!editor.structureReadOnly) ui.dragRegisterOverGroup(event, rootBlockId);
+					}}
+					ondragleave={() => {
+						if (ui.dragOverGroupId === rootBlockId) ui.dragOverGroupId = '';
+					}}
+					ondrop={(event) => {
+						if (!editor.structureReadOnly) editor.dropRegisterOnRoot(event);
+					}}
+					role="presentation"
 				>
-					{#if rootExpanded}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}
-				</button>
-				<button
-					class="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1.5 text-left font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-					onclick={() => editor.selectGroup('')}
-					title={editor.addrmapLabel}
-				>
-					<span class="truncate">{editor.addrmapLabel}</span>
-				</button>
-				<button
-					class="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-primary focus:opacity-100 group-hover:opacity-100"
-					disabled={editor.structureReadOnly}
-					onclick={() => editor.addSubdir()}
-					title="Add folder"
-				>
-					<FolderPlus size={14} />
-				</button>
-				<button
-					class="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-primary focus:opacity-100 group-hover:opacity-100"
-					disabled={editor.structureReadOnly}
-					onclick={() => editor.addRegister('')}
-					title="Add register"
-				>
-					<Plus size={14} />
-				</button>
-			</div>
-			{#if rootExpanded}
-				{#if editor.searchActive && editor.searchResults.length === 0}
-					<div class="px-9 py-4 text-base text-muted-foreground">No matches</div>
-				{:else}
-					<HierarchyFolderChildren groupPath="" />
+					<button
+						class="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+						onclick={() => ui.toggleBlock(rootBlockId)}
+						title="Toggle addrmap"
+					>
+						{#if rootExpanded}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}
+					</button>
+					<button
+						class="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1.5 text-left font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+						onclick={() => editor.selectGroup('')}
+						title={editor.addrmapLabel}
+					>
+						<span class="truncate">{editor.addrmapLabel}</span>
+					</button>
+					<button
+						class="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-primary focus:opacity-100 group-hover:opacity-100"
+						disabled={editor.structureReadOnly}
+						onclick={() => editor.addSubdir()}
+						title="Add folder"
+					>
+						<FolderPlus size={14} />
+					</button>
+					<button
+						class="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-primary focus:opacity-100 group-hover:opacity-100"
+						disabled={editor.structureReadOnly}
+						onclick={() => editor.addRegister('')}
+						title="Add register"
+					>
+						<Plus size={14} />
+					</button>
+				</div>
+				{#if rootExpanded}
+					{#if editor.searchActive && editor.searchResults.length === 0}
+						<div class="px-9 py-4 text-base text-muted-foreground">No matches</div>
+					{:else}
+						<HierarchyFolderChildren groupPath="" />
+					{/if}
 				{/if}
-			{/if}
-		</div>
+			</div>
+		</ScrollArea>
 	{/if}
 
 	<div class="mt-auto border-t border-sidebar-border p-2">
