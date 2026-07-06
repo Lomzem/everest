@@ -5,7 +5,9 @@ const identifierPattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export function identifierErrors(value: string | undefined, label: string) {
 	if (!value || identifierPattern.test(value)) return [];
-	return [`${label} must be a valid identifier.`];
+	if (/^[0-9]/.test(value)) return [`${label} can't start with a number.`];
+	if (/\s/.test(value)) return [`${label} can't contain spaces.`];
+	return [`${label} can only contain letters, numbers, and underscores.`];
 }
 
 export function enumValueErrors(field: Field, enumValue: EnumValue, valueMode: ValueMode) {

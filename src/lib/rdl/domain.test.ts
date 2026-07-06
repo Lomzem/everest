@@ -102,13 +102,13 @@ describe('RDL domain helpers', () => {
 		expect(identifierErrors('VALUE_1', 'Enum value name')).toEqual([]);
 		expect(identifierErrors('', 'Enum name')).toEqual([]);
 		expect(identifierErrors('1mode', 'Enum name')).toEqual([
-			'Enum name must be a valid identifier.',
+			"Enum name can't start with a number.",
 		]);
 		expect(identifierErrors('bad name', 'Enum value name')).toEqual([
-			'Enum value name must be a valid identifier.',
+			"Enum value name can't contain spaces.",
 		]);
 		expect(identifierErrors('bad-name', 'Enum value name')).toEqual([
-			'Enum value name must be a valid identifier.',
+			'Enum value name can only contain letters, numbers, and underscores.',
 		]);
 	});
 
