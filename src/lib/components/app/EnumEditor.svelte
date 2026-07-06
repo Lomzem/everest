@@ -1,27 +1,50 @@
 <script lang="ts">
 	import { Braces, Plus, Trash2 } from '@lucide/svelte';
 	import type { Field } from '$lib/rdl/model';
-	import { enumValueErrors } from '$lib/rdl/validation';
+	import { enumValueErrors, identifierErrors } from '$lib/rdl/validation';
 	import { fieldBitWidth, valuePrefix } from '$lib/rdl/format';
 	import { editor, textInput } from '$lib/state/editor.svelte';
 	import { ui } from '$lib/state/ui.svelte';
 
 	let { field }: { field: Field } = $props();
+
+	const errorClass = (errors: string[]) =>
+		errors.length
+			? 'border-destructive/50 focus:border-destructive'
+			: 'border-input focus:border-primary';
 </script>
 
 {#if field.values.length}
+	{@const enumNameErrors = identifierErrors(field.enumName, 'Enum name')}
 	<div class="mt-4 rounded-md border border-border bg-card p-3">
 		<div class="mb-3 grid grid-cols-[auto_1fr_auto] items-center gap-2 text-base">
 			<Braces size={15} class="text-muted-foreground" />
 			<label class="flex items-center gap-2">
 				<span class="font-semibold">Enum</span>
-				<input
-					class="h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 font-mono text-base outline-none focus:border-primary"
-					data-enum-name-input={field.id}
-					value={field.enumName}
-					disabled={!editor.canEditField(field.id, 'enumName')}
-					oninput={(event) => editor.updateField(field.id, { enumName: textInput(event) })}
-				/>
+				<span class="group/error relative min-w-0 flex-1">
+					<input
+						class={`h-8 w-full rounded-md border bg-background px-2 pr-6 font-mono text-base outline-none ${errorClass(
+							enumNameErrors,
+						)}`}
+						data-enum-name-input={field.id}
+						value={field.enumName}
+						disabled={!editor.canEditField(field.id, 'enumName')}
+						title={enumNameErrors.join(' ')}
+						oninput={(event) => editor.updateField(field.id, { enumName: textInput(event) })}
+					/>
+					{#if enumNameErrors.length}
+						<span
+							class="pointer-events-none absolute right-1 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full bg-destructive/10 text-base font-semibold text-destructive"
+						>
+							!
+						</span>
+						<span
+							class="pointer-events-none absolute bottom-full left-0 z-20 mb-2 hidden w-max max-w-sm rounded-md border border-destructive/30 bg-popover px-2 py-1 text-base leading-5 text-destructive shadow-lg group-hover/error:block group-focus-within/error:block"
+						>
+							{enumNameErrors.join(' ')}
+						</span>
+					{/if}
+				</span>
 			</label>
 			<button
 				class="inline-flex h-8 items-center gap-2 rounded-md border border-border px-3 text-base font-medium text-primary hover:bg-muted"
@@ -35,17 +58,35 @@
 		<div class="space-y-2">
 			{#each field.values as value (value.id)}
 				{@const errors = enumValueErrors(field, value, ui.valueMode)}
+				{@const nameErrors = identifierErrors(value.name, 'Enum value name')}
 				<div class="grid grid-cols-[160px_160px_1fr_auto] gap-3 text-base">
-					<input
-						class="h-8 rounded-md border border-input bg-background px-2 font-semibold outline-none focus:border-primary"
-						data-enum-variant-name-input={`${field.id}:${value.id}`}
-						value={value.name}
-						disabled={!editor.canEditEnumValue(field.id, value.id, 'name')}
-						oninput={(event) =>
-							editor.updateEnumValue(field.id, value.id, { name: textInput(event) })}
-					/>
+					<span class="group/error relative">
+						<input
+							class={`h-8 w-full rounded-md border bg-background px-2 pr-6 font-semibold outline-none ${errorClass(
+								nameErrors,
+							)}`}
+							data-enum-variant-name-input={`${field.id}:${value.id}`}
+							value={value.name}
+							disabled={!editor.canEditEnumValue(field.id, value.id, 'name')}
+							title={nameErrors.join(' ')}
+							oninput={(event) =>
+								editor.updateEnumValue(field.id, value.id, { name: textInput(event) })}
+						/>
+						{#if nameErrors.length}
+							<span
+								class="pointer-events-none absolute right-1 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full bg-destructive/10 text-base font-semibold text-destructive"
+							>
+								!
+							</span>
+							<span
+								class="pointer-events-none absolute bottom-full left-0 z-20 mb-2 hidden w-max max-w-sm rounded-md border border-destructive/30 bg-popover px-2 py-1 text-base leading-5 text-destructive shadow-lg group-hover/error:block group-focus-within/error:block"
+							>
+								{nameErrors.join(' ')}
+							</span>
+						{/if}
+					</span>
 					{#key `${ui.valueMode}:${value.id}`}
-						<span class="relative">
+						<span class="group/error relative">
 							<span
 								class={`flex h-8 overflow-hidden rounded-md border bg-background ${
 									errors.length
@@ -89,7 +130,7 @@
 									!
 								</span>
 								<span
-									class="pointer-events-none absolute left-full top-1/2 z-20 ml-2 w-max max-w-sm -translate-y-1/2 rounded-md border border-destructive/30 bg-popover px-2 py-1 text-base leading-5 text-destructive shadow-lg"
+									class="pointer-events-none absolute left-full top-1/2 z-20 ml-2 hidden w-max max-w-sm -translate-y-1/2 rounded-md border border-destructive/30 bg-popover px-2 py-1 text-base leading-5 text-destructive shadow-lg group-hover/error:block group-focus-within/error:block"
 								>
 									{errors.join(' ')}
 								</span>
