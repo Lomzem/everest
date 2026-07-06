@@ -12,11 +12,18 @@
 		errors.length
 			? 'border-destructive/50 focus:border-destructive'
 			: 'border-input focus:border-primary';
+
+	async function addEncoding() {
+		await editor.addEnumValue(field.id);
+		globalThis.document
+			.querySelector<HTMLElement>(`[data-enum-editor="${CSS.escape(field.id)}"]`)
+			?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+	}
 </script>
 
 {#if field.values.length}
 	{@const enumNameErrors = identifierErrors(field.enumName, 'Enum name')}
-	<div class="mt-4 rounded-md border border-border bg-card p-3">
+	<div class="mt-4 rounded-md border border-border bg-card p-3" data-enum-editor={field.id}>
 		<div class="mb-3 grid grid-cols-[auto_1fr_auto] items-center gap-2 text-base">
 			<Braces size={15} class="text-muted-foreground" />
 			<label class="flex items-center gap-2">
@@ -49,7 +56,7 @@
 			<button
 				class="inline-flex h-8 items-center gap-2 rounded-md border border-border px-3 text-base font-medium text-primary hover:bg-muted"
 				disabled={editor.structureReadOnly}
-				onclick={() => editor.addEnumValue(field.id)}
+				onclick={addEncoding}
 			>
 				<Plus size={14} />
 				Add Encoding
@@ -160,7 +167,7 @@
 	<button
 		class="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-base font-medium text-primary hover:bg-muted"
 		disabled={editor.structureReadOnly}
-		onclick={() => editor.addEnumValue(field.id)}
+		onclick={addEncoding}
 	>
 		<Braces size={15} />
 		Add Enum

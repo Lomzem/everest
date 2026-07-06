@@ -7,6 +7,13 @@
 	import FieldCard from './FieldCard.svelte';
 
 	const valueModes: ValueMode[] = ['hex', 'dec', 'bin'];
+
+	async function addField() {
+		await editor.addField();
+		globalThis.document
+			.querySelector<HTMLElement>(`[data-field-card="${CSS.escape(editor.selectedFieldId)}"]`)
+			?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+	}
 </script>
 
 <section class="px-8 pb-8">
@@ -48,7 +55,7 @@
 				size="lg"
 				class="text-primary"
 				disabled={editor.structureReadOnly}
-				onclick={() => editor.addField()}
+				onclick={addField}
 			>
 				<Plus size={14} />
 				Add Field

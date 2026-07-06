@@ -31,6 +31,7 @@
 </script>
 
 <article
+	data-field-card={field.id}
 	class={`${field.id === editor.selectedFieldId ? 'border-primary ring-2 ring-primary/20' : 'border-border'} overflow-hidden rounded-md border bg-card text-card-foreground shadow-sm`}
 >
 	<div class={`${field.color} flex items-center gap-2 pr-3`}>
