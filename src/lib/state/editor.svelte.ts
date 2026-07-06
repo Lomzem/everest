@@ -228,8 +228,8 @@ export class EditorState {
 	async syncWindowState() {
 		const title =
 			this.appView === 'welcome'
-				? 'Basecamp'
-				: `${this.dirty ? '* ' : ''}${this.documentLabel || 'Untitled'} - Basecamp`;
+				? 'Everest'
+				: `${this.dirty ? '* ' : ''}${this.documentLabel || 'Untitled'} - Everest`;
 		await runAppEffect(syncWindowState({ dirty: this.dirty, title }));
 	}
 

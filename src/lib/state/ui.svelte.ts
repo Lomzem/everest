@@ -5,7 +5,7 @@ import { formatEditableValue } from '$lib/rdl/format';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
-const themeStorageKey = 'basecamp.theme';
+const themeStorageKey = 'everest.theme';
 const themeModes = new Set<ThemeMode>(['light', 'dark', 'system']);
 
 const isThemeMode = (value: string | null): value is ThemeMode =>

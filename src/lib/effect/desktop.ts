@@ -26,12 +26,12 @@ export interface DesktopBridgeService {
 	readonly quitApplication: Effect.Effect<void, DesktopError>;
 }
 
-export class DesktopBridge extends Context.Tag('basecamp/DesktopBridge')<
+export class DesktopBridge extends Context.Tag('everest/DesktopBridge')<
 	DesktopBridge,
 	DesktopBridgeService
 >() {}
 
-const api = Effect.sync(() => globalThis.window?.basecamp ?? createTauriDesktopApi());
+const api = Effect.sync(() => globalThis.window?.everest ?? createTauriDesktopApi());
 
 const requiredApi = (operation: string) =>
 	api.pipe(
@@ -78,5 +78,5 @@ export const DesktopBridgeLive = Layer.succeed(DesktopBridge, {
 });
 
 export function subscribeMenuCommand(callback: (command: string) => void) {
-	return (globalThis.window?.basecamp ?? createTauriDesktopApi())?.onMenuCommand(callback);
+	return (globalThis.window?.everest ?? createTauriDesktopApi())?.onMenuCommand(callback);
 }

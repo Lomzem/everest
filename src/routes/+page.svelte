@@ -25,7 +25,7 @@
 <svelte:head>
 	<title
 		>{editor.appView === 'welcome'
-			? 'Basecamp'
+			? 'Everest'
 			: `${editor.dirty ? '* ' : ''}${editor.documentLabel}`}</title
 	>
 </svelte:head>

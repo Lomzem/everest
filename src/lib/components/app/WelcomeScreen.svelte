@@ -6,7 +6,7 @@
 
 <main class="flex h-screen min-h-[720px] items-center justify-center bg-background text-foreground">
 	<section class="flex flex-col items-center gap-6">
-		<h1 class="text-3xl font-semibold tracking-normal">Basecamp</h1>
+		<h1 class="text-3xl font-semibold tracking-normal">Everest</h1>
 		<div class="flex items-center gap-3">
 			<Button variant="outline" size="lg" onclick={() => editor.openDocument()}>
 				<FolderOpen size={14} />

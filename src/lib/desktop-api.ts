@@ -24,7 +24,7 @@ export interface DesktopApi {
 
 declare global {
 	interface Window {
-		readonly basecamp?: DesktopApi;
+		readonly everest?: DesktopApi;
 	}
 }
 

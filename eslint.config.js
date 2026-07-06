@@ -23,7 +23,7 @@ export default defineConfig(
 	...tseslint.configs.recommended,
 	...svelte.configs['flat/recommended'],
 	{
-		name: 'basecamp/svelte-typescript',
+		name: 'everest/svelte-typescript',
 		files: ['**/*.svelte', '**/*.svelte.ts'],
 		languageOptions: {
 			parserOptions: {
@@ -33,7 +33,7 @@ export default defineConfig(
 		},
 	},
 	{
-		name: 'basecamp/browser-globals',
+		name: 'everest/browser-globals',
 		files: ['src/**/*.{ts,svelte}'],
 		languageOptions: {
 			globals: {
@@ -42,7 +42,7 @@ export default defineConfig(
 		},
 	},
 	{
-		name: 'basecamp/node-globals',
+		name: 'everest/node-globals',
 		files: ['*.{js,cjs,mjs,ts,cts,mts}', 'scripts/**/*.{ts,cts,mts}'],
 		languageOptions: {
 			globals: {
@@ -51,14 +51,14 @@ export default defineConfig(
 		},
 	},
 	{
-		name: 'basecamp/test-globals',
+		name: 'everest/test-globals',
 		files: ['**/*.test.ts'],
 		languageOptions: {
 			globals: globals.vitest,
 		},
 	},
 	{
-		name: 'basecamp/project-rules',
+		name: 'everest/project-rules',
 		rules: {
 			'@typescript-eslint/no-explicit-any': 'off',
 			'@typescript-eslint/no-empty-object-type': 'off',
@@ -67,14 +67,14 @@ export default defineConfig(
 		},
 	},
 	{
-		name: 'basecamp/shadcn-svelte',
+		name: 'everest/shadcn-svelte',
 		files: ['src/lib/components/ui/**/*.svelte'],
 		rules: {
 			'svelte/no-navigation-without-resolve': 'off',
 		},
 	},
 	{
-		name: 'basecamp/tailwind',
+		name: 'everest/tailwind',
 		...tailwindcss.configs.recommended,
 		files: ['**/*.ts', '**/*.js', '**/*.svelte'],
 		settings: {

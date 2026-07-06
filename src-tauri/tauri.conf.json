@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Basecamp",
+  "productName": "Everest",
   "version": "0.0.1",
-  "identifier": "dev.basecamp.desktop",
+  "identifier": "dev.everest.desktop",
   "build": {
     "beforeDevCommand": "bun run sidecar:build && bun run dev --host 127.0.0.1",
     "devUrl": "http://127.0.0.1:5173",
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Basecamp",
+        "title": "Everest",
         "width": 1180,
         "height": 760,
         "minWidth": 900,

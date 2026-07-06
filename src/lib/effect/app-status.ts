@@ -15,7 +15,7 @@ const detectRuntime = Effect.sync((): RuntimeTarget => {
 
 export const getAppStatus = Effect.map(detectRuntime, (runtime): AppStatus => {
 	return {
-		name: 'Basecamp',
+		name: 'Everest',
 		runtime,
 		ready: true,
 	};

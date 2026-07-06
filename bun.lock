@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "basecamp",
+      "name": "everest",
       "dependencies": {
         "@tauri-apps/api": "^2.11.1",
         "effect": "^3.21.4",
