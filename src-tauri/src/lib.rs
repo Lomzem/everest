@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::hash_map::DefaultHasher,
     fs,
+    hash::{Hash, Hasher},
     path::{Path, PathBuf},
     process::Command,
     sync::Mutex,
@@ -10,6 +12,9 @@ use tauri::{
     AppHandle, Emitter, Manager, State, WebviewWindow, Window, WindowEvent,
 };
 use tauri_plugin_dialog::DialogExt;
+
+const RDL_PARSER_BYTES: &[u8] = include_bytes!(env!("RDL_PARSER_SIDECAR_PATH"));
+const RDL_PARSER_TARGET: &str = env!("RDL_PARSER_TARGET");
 
 #[derive(Default)]
 struct AppState {
@@ -53,29 +58,48 @@ fn file_path_to_string(path: tauri_plugin_dialog::FilePath) -> Result<String, St
         .map_err(|path| format!("Unsupported non-filesystem path: {path}"))
 }
 
-fn sidecar_path(name: &str) -> Result<PathBuf, String> {
-    let exe = std::env::current_exe().map_err(|error| error.to_string())?;
-    let exe_dir = exe
-        .parent()
-        .ok_or_else(|| "Application executable has no parent directory".to_string())?;
-    let mut path = exe_dir.join(name);
+fn parser_cache_key() -> u64 {
+    let mut hasher = DefaultHasher::new();
+    RDL_PARSER_BYTES.hash(&mut hasher);
+    hasher.finish()
+}
 
-    #[cfg(windows)]
-    {
-        let already_exe = path.extension().is_some_and(|extension| extension == "exe");
-        if !already_exe {
-            path.as_mut_os_string().push(".exe");
+fn parser_sidecar_path() -> Result<PathBuf, String> {
+    let extension = if cfg!(windows) { ".exe" } else { "" };
+    let parser_name = format!(
+        "rdl-parser-{target}-{version}-{hash:016x}{extension}",
+        target = RDL_PARSER_TARGET,
+        version = env!("CARGO_PKG_VERSION"),
+        hash = parser_cache_key(),
+    );
+    let parser_dir = std::env::temp_dir().join("everest").join("sidecars");
+    let parser_path = parser_dir.join(parser_name);
+
+    if parser_path.exists() {
+        let metadata = fs::metadata(&parser_path)
+            .map_err(|error| format!("Failed to inspect RDL parser sidecar: {error}"))?;
+        if metadata.len() == RDL_PARSER_BYTES.len() as u64 {
+            return Ok(parser_path);
         }
     }
 
-    #[cfg(not(windows))]
+    fs::create_dir_all(&parser_dir)
+        .map_err(|error| format!("Failed to create RDL parser sidecar directory: {error}"))?;
+    fs::write(&parser_path, RDL_PARSER_BYTES)
+        .map_err(|error| format!("Failed to extract RDL parser sidecar: {error}"))?;
+
+    #[cfg(unix)]
     {
-        if path.extension().is_some_and(|extension| extension == "exe") {
-            path.set_extension("");
-        }
+        use std::os::unix::fs::PermissionsExt;
+        let mut permissions = fs::metadata(&parser_path)
+            .map_err(|error| format!("Failed to inspect extracted RDL parser sidecar: {error}"))?
+            .permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(&parser_path, permissions)
+            .map_err(|error| format!("Failed to make RDL parser sidecar executable: {error}"))?;
     }
 
-    Ok(path)
+    Ok(parser_path)
 }
 
 fn run_parser_sidecar(parser_path: &Path, file_path: &str) -> Result<Vec<u8>, String> {
@@ -109,7 +133,7 @@ fn run_parser_sidecar(parser_path: &Path, file_path: &str) -> Result<Vec<u8>, St
 }
 
 async fn parse_rdl_file(file_path: String) -> Result<ParsedRdlFile, String> {
-    let parser_path = sidecar_path("rdl-parser")?;
+    let parser_path = parser_sidecar_path()?;
     let stdout = tauri::async_runtime::spawn_blocking(move || {
         run_parser_sidecar(&parser_path, file_path.as_str())
     })
