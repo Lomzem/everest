@@ -6,6 +6,14 @@ import { EditorState } from './editor.svelte';
 describe('EditorState derived names', () => {
 	beforeEach(() => {
 		vi.restoreAllMocks();
+		Object.defineProperty(globalThis, 'window', {
+			configurable: true,
+			value: {
+				alert: vi.fn(),
+				confirm: vi.fn(() => true),
+				localStorage: localStorageMock(),
+			},
+		});
 		Object.defineProperty(globalThis, 'document', {
 			configurable: true,
 			value: {
@@ -296,7 +304,62 @@ describe('EditorState derived names', () => {
 		state.undo();
 		expect(state.selectedRegister.title).toBe('New Control Register');
 	});
+
+	it('restores persisted undo history across editor instances', async () => {
+		let now = 1;
+		vi.spyOn(Date, 'now').mockImplementation(() => now++);
+		const state = new EditorState();
+		state.newDocument();
+		await state.addRegister('');
+		const registerId = state.selectedRegister.id;
+
+		state.deleteRegister(registerId);
+		expect(state.canUndo).toBe(true);
+
+		const restored = new EditorState();
+		expect(restored.restorePersistedSession()).toBe(true);
+		expect(restored.document.registers).toHaveLength(0);
+		expect(restored.canUndo).toBe(true);
+
+		restored.undo();
+		expect(restored.document.registers.map((register) => register.id)).toEqual([registerId]);
+		expect(restored.selectedRegisterId).toBe(registerId);
+	});
+
+	it('restores persisted redo history across editor instances', async () => {
+		let now = 1;
+		vi.spyOn(Date, 'now').mockImplementation(() => now++);
+		const state = new EditorState();
+		state.newDocument();
+		await state.addRegister('');
+		const registerId = state.selectedRegister.id;
+		state.deleteRegister(registerId);
+		state.undo();
+
+		const restored = new EditorState();
+		expect(restored.restorePersistedSession()).toBe(true);
+		expect(restored.canRedo).toBe(true);
+
+		restored.redo();
+		expect(restored.document.registers).toHaveLength(0);
+	});
 });
+
+function localStorageMock() {
+	const values = new Map<string, string>();
+	return {
+		getItem: vi.fn((key: string) => values.get(key) ?? null),
+		setItem: vi.fn((key: string, value: string) => {
+			values.set(key, value);
+		}),
+		removeItem: vi.fn((key: string) => {
+			values.delete(key);
+		}),
+		clear: vi.fn(() => {
+			values.clear();
+		}),
+	};
+}
 
 function sourceDocument(): RdlDocument {
 	return {

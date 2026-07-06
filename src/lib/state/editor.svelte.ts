@@ -53,6 +53,12 @@ import {
 	type EditableRegisterProp,
 } from '$lib/rdl/source-edits';
 import { ui } from './ui.svelte';
+import {
+	readPersistedEditorSession,
+	writePersistedEditorSession,
+	type HistoryEntry,
+	type SelectionSnapshot,
+} from './session-persistence';
 
 export { accessOptions };
 
@@ -187,6 +193,7 @@ export class EditorState {
 
 	setDirty(nextDirty: boolean) {
 		this.dirty = nextDirty;
+		this.persistSession();
 		void this.syncWindowState();
 	}
 
@@ -271,6 +278,7 @@ export class EditorState {
 	private pushHistory(entry: HistoryEntry) {
 		this.undoStack = [...this.undoStack, entry];
 		this.redoStack = [];
+		this.persistSession();
 	}
 
 	private restoreHistoryState(
@@ -289,6 +297,7 @@ export class EditorState {
 		this.repairSelection();
 		this.revealRestoredSelection();
 		this.setDirty(nextDirty);
+		this.persistSession();
 	}
 
 	private selectionSnapshot(): SelectionSnapshot {
@@ -298,6 +307,18 @@ export class EditorState {
 			selectedGroupPath: this.selectedGroupPath,
 			selectedFieldId: this.selectedFieldId,
 		};
+	}
+
+	private persistSession() {
+		writePersistedEditorSession({
+			appView: this.appView,
+			document: this.document,
+			currentPath: this.currentPath,
+			dirty: this.dirty,
+			selection: this.selectionSnapshot(),
+			undoStack: this.undoStack,
+			redoStack: this.redoStack,
+		});
 	}
 
 	private repairSelection() {
@@ -385,6 +406,34 @@ export class EditorState {
 				? 'Everest'
 				: `${this.dirty ? '* ' : ''}${this.documentLabel || 'Untitled'} - Everest`;
 		await runAppEffect(syncWindowState({ dirty: this.dirty, title }));
+	}
+
+	restorePersistedSession() {
+		const session = readPersistedEditorSession();
+		if (!session || session.appView !== 'editor') return false;
+
+		this.document = {
+			...session.document,
+			hierarchyGroups: normalizeHierarchyGroups(
+				session.document.hierarchyGroups,
+				session.document.registers,
+			),
+		};
+		this.currentPath = session.currentPath;
+		this.dirty = session.dirty;
+		this.undoStack = session.undoStack;
+		this.redoStack = session.redoStack;
+		this.groupedEdit = undefined;
+		this.selectedKind = session.selection.selectedKind;
+		this.selectedRegisterId = session.selection.selectedRegisterId;
+		this.selectedGroupPath = session.selection.selectedGroupPath;
+		this.selectedFieldId = session.selection.selectedFieldId;
+		this.appView = 'editor';
+		ui.resetForDocument();
+		this.repairSelection();
+		this.revealRestoredSelection();
+		void this.syncWindowState();
+		return true;
 	}
 
 	newDocument() {
@@ -506,6 +555,7 @@ export class EditorState {
 			ui.expandHierarchy(groupIdsForPath(next.group, this.document.hierarchyGroups));
 		}
 		ui.setExpandedFieldsFor(next);
+		this.persistSession();
 	}
 
 	selectGroup(groupPath: string) {
@@ -514,6 +564,7 @@ export class EditorState {
 		this.selectedFieldId = '';
 		ui.expandHierarchy(groupIdsForPath(groupPath, this.document.hierarchyGroups));
 		ui.expandedFieldIds = new SvelteSet();
+		this.persistSession();
 	}
 
 	selectFirstAvailable(
@@ -531,11 +582,13 @@ export class EditorState {
 		this.selectedFieldId = '';
 		this.selectedGroupPath = nextGroups[0]?.path ?? '';
 		ui.expandedFieldIds = new SvelteSet();
+		this.persistSession();
 	}
 
 	toggleField(fieldId: string) {
 		this.selectedFieldId = fieldId;
 		ui.toggleField(fieldId);
+		this.persistSession();
 	}
 
 	dropRegisterOnGroup(event: DragEvent, group: HierarchyGroup) {
@@ -736,6 +789,7 @@ export class EditorState {
 
 		await tick();
 		focusAndSelect(`[data-register-title-input="${next.id}"]`);
+		this.persistSession();
 	}
 
 	deleteRegister(registerId: string) {
@@ -1138,22 +1192,6 @@ function fieldSourceProp(prop: string): EditableFieldProp | undefined {
 }
 
 export const editor = new EditorState();
-
-interface SelectionSnapshot {
-	selectedKind: SelectionKind;
-	selectedRegisterId: string;
-	selectedGroupPath: string;
-	selectedFieldId: string;
-}
-
-interface HistoryEntry {
-	documentBefore: RdlDocument;
-	documentAfter: RdlDocument;
-	selectionBefore: SelectionSnapshot;
-	selectionAfter: SelectionSnapshot;
-	dirtyBefore: boolean;
-	dirtyAfter: boolean;
-}
 
 interface GroupedEdit {
 	documentBefore: RdlDocument;

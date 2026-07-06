@@ -7,6 +7,7 @@
 	import { editor } from '$lib/state/editor.svelte';
 
 	onMount(() => {
+		editor.restorePersistedSession();
 		void editor.syncWindowState();
 		const removeMenuListener = editor.subscribeMenuCommands();
 		const beforeUnload = (event: BeforeUnloadEvent) => {
