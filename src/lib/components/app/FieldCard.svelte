@@ -1,15 +1,18 @@
 <script lang="ts">
-	import { ChevronDown, ChevronRight, Plus, Trash2 } from '@lucide/svelte';
+	import { Check, ChevronDown, ChevronRight, Trash2 } from '@lucide/svelte';
 	import type { Access, Field } from '$lib/rdl/model';
 	import { fieldBitWidth, formatValue, valuePrefix } from '$lib/rdl/format';
 	import { resetErrors } from '$lib/rdl/validation';
 	import { accessOptions, editor, numberInput, textInput } from '$lib/state/editor.svelte';
 	import { ui } from '$lib/state/ui.svelte';
+	import * as Command from '$lib/components/ui/command';
+	import * as Popover from '$lib/components/ui/popover';
 	import * as Select from '$lib/components/ui/select';
 	import EnumEditor from './EnumEditor.svelte';
 
 	let { field }: { field: Field } = $props();
 	let headerResetMode = $state<'enum' | 'numeric'>('enum');
+	let resetPopoverOpen = $state(false);
 
 	const resetEnumValue = $derived(
 		field.values.find((value) => value.id === field.resetEnumValueId),
@@ -20,6 +23,7 @@
 			: formatValue(field.reset, ui.valueMode, fieldBitWidth(field)),
 	);
 	const resetValidationErrors = $derived(resetErrors(field, ui.valueMode));
+	const resetNumericText = $derived(formatValue(field.reset, ui.valueMode, fieldBitWidth(field)));
 	const errorClass = (errors: string[]) =>
 		errors.length
 			? 'border-destructive/50 focus:border-destructive'
@@ -91,7 +95,7 @@
 		<div class="border-t border-border bg-muted/50 px-8 py-5">
 			<div class="space-y-4">
 				<div
-					class="grid grid-cols-[1fr_1fr_96px_96px_minmax(200px,1fr)_120px_120px] items-end gap-3"
+					class="grid grid-cols-[1fr_1fr_96px_96px_minmax(320px,2fr)_120px_120px] items-end gap-3"
 				>
 					<label class="space-y-1">
 						<span class="text-base font-medium text-muted-foreground">Name</span>
@@ -140,32 +144,25 @@
 						<span class="text-base font-medium text-muted-foreground">Reset</span>
 						{#key ui.valueMode}
 							{#if field.values.length}
-								<div class="grid grid-cols-[minmax(0,1fr)_minmax(104px,0.7fr)] gap-2">
-									<span class="group/error relative min-w-0">
-										<Select.Root
-											type="single"
-											value={field.resetEnumValueId}
-											disabled={!editor.canEditField(field.id, 'reset')}
-											onValueChange={(value: string) => {
-												editor.updateResetEnumValue(field.id, value);
-											}}
-										>
-											<Select.Trigger
-												class={`flex h-9 w-full rounded-md border bg-background px-2 text-base focus-visible:ring-0 ${errorClass(
+								<Popover.Root bind:open={resetPopoverOpen}>
+									<span class="group/error relative block min-w-0">
+										<Popover.Trigger class="block w-full">
+											<button
+												class={`flex h-9 w-full items-center gap-2 rounded-md border bg-background px-2 text-left text-base outline-none focus:border-primary ${errorClass(
 													resetValidationErrors,
 												)}`}
-												title={resetValidationErrors.join(' ')}
+												disabled={!editor.canEditField(field.id, 'reset')}
+												title={resetValidationErrors.join(' ') || 'Choose reset value'}
 											>
-												<span class="truncate">{resetEnumValue?.name ?? 'Invalid reset'}</span>
-											</Select.Trigger>
-											<Select.Content>
-												{#each field.values as value (value.id)}
-													<Select.Item class="text-base" value={value.id} label={value.name}>
-														<span class="truncate">{value.name}</span>
-													</Select.Item>
-												{/each}
-											</Select.Content>
-										</Select.Root>
+												<span class="min-w-0 flex-1 truncate font-semibold">
+													{resetEnumValue?.name ?? 'Invalid reset'}
+												</span>
+												<span class="shrink-0 font-mono text-base text-muted-foreground">
+													{resetNumericText}
+												</span>
+												<ChevronDown size={14} class="shrink-0 text-muted-foreground" />
+											</button>
+										</Popover.Trigger>
 										{#if resetValidationErrors.length}
 											<span
 												class="pointer-events-none absolute right-1 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full bg-destructive/10 text-base font-semibold text-destructive"
@@ -179,43 +176,50 @@
 											</span>
 										{/if}
 									</span>
-									<span
-										class={`flex h-9 overflow-hidden rounded-md border bg-background focus-within:border-primary ${
-											resetValidationErrors.length ? 'border-destructive/50' : 'border-input'
-										}`}
-										title={resetValidationErrors.join(' ')}
-									>
-										{#if valuePrefix(ui.valueMode)}
-											<span
-												class="flex items-center border-r border-border bg-muted px-2 font-mono text-base text-muted-foreground"
+
+									<Popover.Content class="w-[380px] p-0" align="start">
+										<Command.Root class="rounded-lg">
+											<Command.Input class="text-base" placeholder="Search encodings..." />
+											<Command.List class="max-h-56">
+												<Command.Empty class="text-base">No encoding found.</Command.Empty>
+												<Command.Group heading="Encodings">
+													{#each field.values as value (value.id)}
+														<Command.Item
+															class="grid grid-cols-[20px_minmax(0,1fr)_auto] text-base [&_.cn-command-item-indicator]:hidden"
+															value={`${value.name} ${formatValue(
+																value.value,
+																ui.valueMode,
+																fieldBitWidth(field),
+															)}`}
+															onclick={() => {
+																editor.updateResetEnumValue(field.id, value.id);
+																resetPopoverOpen = false;
+															}}
+														>
+															<Check
+																size={14}
+																class={value.id === field.resetEnumValueId
+																	? 'text-primary opacity-100'
+																	: 'text-primary opacity-0'}
+															/>
+															<span class="min-w-0 truncate font-semibold">{value.name}</span>
+															<span class="font-mono text-base text-muted-foreground">
+																{formatValue(value.value, ui.valueMode, fieldBitWidth(field))}
+															</span>
+														</Command.Item>
+													{/each}
+												</Command.Group>
+											</Command.List>
+										</Command.Root>
+										{#if resetValidationErrors.length}
+											<div
+												class="border-t border-border px-3 py-2 text-base leading-5 text-destructive"
 											>
-												{valuePrefix(ui.valueMode)}
-											</span>
+												{resetValidationErrors.join(' ')}
+											</div>
 										{/if}
-										<input
-											class="min-w-0 flex-1 px-2 font-mono text-base outline-none"
-											inputmode={ui.valueMode === 'dec' ? 'numeric' : 'text'}
-											disabled={!editor.canEditField(field.id, 'reset')}
-											value={ui.numericInputValue(
-												`reset:${field.id}`,
-												field.reset,
-												fieldBitWidth(field),
-											)}
-											oninput={(event) => editor.updateResetDraft(field.id, textInput(event))}
-											onblur={() => editor.commitResetDraft(field.id)}
-										/>
-									</span>
-								</div>
-								{#if resetValidationErrors.length}
-									<button
-										class="mt-2 inline-flex h-8 items-center gap-2 rounded-md border border-border bg-background px-3 text-base font-medium text-primary hover:bg-muted"
-										disabled={editor.structureReadOnly}
-										onclick={() => editor.addEnumValueForReset(field.id)}
-									>
-										<Plus size={14} />
-										Add Encoding
-									</button>
-								{/if}
+									</Popover.Content>
+								</Popover.Root>
 							{:else}
 								<span
 									class="flex h-9 overflow-hidden rounded-md border border-input bg-background focus-within:border-primary"
