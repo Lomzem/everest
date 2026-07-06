@@ -37,7 +37,9 @@
 						value={field.enumName}
 						disabled={!editor.canEditField(field.id, 'enumName')}
 						title={enumNameErrors.join(' ')}
+						onfocus={() => editor.beginGroupedDocumentEdit()}
 						oninput={(event) => editor.updateField(field.id, { enumName: textInput(event) })}
+						onblur={() => editor.endGroupedDocumentEdit()}
 					/>
 					{#if enumNameErrors.length}
 						<span
@@ -76,8 +78,10 @@
 							value={value.name}
 							disabled={!editor.canEditEnumValue(field.id, value.id, 'name')}
 							title={nameErrors.join(' ')}
+							onfocus={() => editor.beginGroupedDocumentEdit()}
 							oninput={(event) =>
 								editor.updateEnumValue(field.id, value.id, { name: textInput(event) })}
+							onblur={() => editor.endGroupedDocumentEdit()}
 						/>
 						{#if nameErrors.length}
 							<span
@@ -119,13 +123,20 @@
 										value.value,
 										fieldBitWidth(field),
 									)}
+									onfocus={() => editor.beginGroupedDocumentEdit()}
 									oninput={(event) =>
 										editor.updateEnumNumericValue(field.id, value.id, textInput(event))}
-									onblur={() => editor.commitEnumNumericValue(field.id, value.id)}
+									onblur={() => {
+										void editor
+											.commitEnumNumericValue(field.id, value.id)
+											.then(() => editor.endGroupedDocumentEdit());
+									}}
 									onkeydown={(event) => {
 										if (event.key === 'Enter') {
 											event.preventDefault();
-											editor.commitEnumNumericValue(field.id, value.id, true);
+											void editor
+												.commitEnumNumericValue(field.id, value.id, true)
+												.then(() => editor.endGroupedDocumentEdit());
 										}
 									}}
 								/>
@@ -148,8 +159,10 @@
 						class="h-8 rounded-md border border-input bg-background px-2 text-muted-foreground outline-none focus:border-primary"
 						value={value.desc}
 						disabled={!editor.canEditEnumValue(field.id, value.id, 'desc')}
+						onfocus={() => editor.beginGroupedDocumentEdit()}
 						oninput={(event) =>
 							editor.updateEnumValue(field.id, value.id, { desc: textInput(event) })}
+						onblur={() => editor.endGroupedDocumentEdit()}
 					/>
 					<button
 						class="inline-flex size-8 items-center justify-center rounded-md border border-destructive/30 text-destructive hover:bg-destructive/10"

@@ -27,8 +27,10 @@
 						data-folder-label-input={editor.selectedFolder.id}
 						value={editor.selectedFolder.label}
 						disabled={!canRenameSelectedFolder}
+						onfocus={() => editor.beginGroupedDocumentEdit()}
 						oninput={(event) =>
 							editor.updateGroupLabel(editor.selectedFolder?.id ?? '', textInput(event))}
+						onblur={() => editor.endGroupedDocumentEdit()}
 						aria-label="Folder display name"
 					/>
 				</label>

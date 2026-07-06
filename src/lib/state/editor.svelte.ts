@@ -90,6 +90,9 @@ export class EditorState {
 	selectedRegisterId = $state('');
 	selectedGroupPath = $state('');
 	selectedFieldId = $state('');
+	undoStack = $state<HistoryEntry[]>([]);
+	redoStack = $state<HistoryEntry[]>([]);
+	private groupedEdit: GroupedEdit | undefined;
 
 	addrmapLabel = $derived(addrmapLabel(this.document));
 	documentLabel = $derived(this.currentPath ? basename(this.currentPath) : this.document.title);
@@ -139,6 +142,8 @@ export class EditorState {
 				)
 			: [],
 	);
+	canUndo = $derived(this.undoStack.length > 0 && !this.readOnly);
+	canRedo = $derived(this.redoStack.length > 0 && !this.readOnly);
 
 	folderChildren(groupPath: string) {
 		return buildFolderChildren(groupPath, this.visibleHierarchyGroups, this.filteredRegisters);
@@ -162,6 +167,7 @@ export class EditorState {
 			hierarchyGroups: normalizeHierarchyGroups(document.hierarchyGroups, document.registers),
 		};
 		this.currentPath = path;
+		this.clearHistory();
 		this.selectedRegisterId = '';
 		this.selectedKind = 'folder';
 		this.selectedGroupPath = '';
@@ -184,9 +190,150 @@ export class EditorState {
 		void this.syncWindowState();
 	}
 
+	clearHistory() {
+		this.undoStack = [];
+		this.redoStack = [];
+		this.groupedEdit = undefined;
+	}
+
+	beginGroupedDocumentEdit() {
+		if (this.readOnly || this.groupedEdit) return;
+		this.groupedEdit = {
+			documentBefore: this.document,
+			selectionBefore: this.selectionSnapshot(),
+			dirtyBefore: this.dirty,
+		};
+	}
+
+	endGroupedDocumentEdit() {
+		const groupedEdit = this.groupedEdit;
+		if (!groupedEdit) return;
+		this.groupedEdit = undefined;
+		if (groupedEdit.documentBefore === this.document) return;
+		this.pushHistory({
+			documentBefore: groupedEdit.documentBefore,
+			documentAfter: this.document,
+			selectionBefore: groupedEdit.selectionBefore,
+			selectionAfter: this.selectionSnapshot(),
+			dirtyBefore: groupedEdit.dirtyBefore,
+			dirtyAfter: this.dirty,
+		});
+	}
+
+	undo() {
+		if (!this.canUndo) return;
+		this.endGroupedDocumentEdit();
+		const entry = this.undoStack.at(-1);
+		if (!entry) return;
+		this.undoStack = this.undoStack.slice(0, -1);
+		this.redoStack = [...this.redoStack, entry];
+		this.restoreHistoryState(entry.documentBefore, entry.selectionBefore, entry.dirtyBefore);
+	}
+
+	redo() {
+		if (!this.canRedo) return;
+		this.endGroupedDocumentEdit();
+		const entry = this.redoStack.at(-1);
+		if (!entry) return;
+		this.redoStack = this.redoStack.slice(0, -1);
+		this.undoStack = [...this.undoStack, entry];
+		this.restoreHistoryState(entry.documentAfter, entry.selectionAfter, entry.dirtyAfter);
+	}
+
 	markDirty() {
 		if (this.readOnly) return;
 		if (!this.dirty) this.setDirty(true);
+	}
+
+	private commitDocumentChange(document: RdlDocument) {
+		if (this.readOnly || document === this.document) return false;
+		const before = this.document;
+		const selectionBefore = this.selectionSnapshot();
+		const dirtyBefore = this.dirty;
+		this.document = {
+			...document,
+			hierarchyGroups: normalizeHierarchyGroups(document.hierarchyGroups, document.registers),
+		};
+		this.markDirty();
+		if (!this.groupedEdit) {
+			this.pushHistory({
+				documentBefore: before,
+				documentAfter: this.document,
+				selectionBefore,
+				selectionAfter: this.selectionSnapshot(),
+				dirtyBefore,
+				dirtyAfter: this.dirty,
+			});
+		}
+		return true;
+	}
+
+	private pushHistory(entry: HistoryEntry) {
+		this.undoStack = [...this.undoStack, entry];
+		this.redoStack = [];
+	}
+
+	private restoreHistoryState(
+		document: RdlDocument,
+		selection: SelectionSnapshot,
+		nextDirty: boolean,
+	) {
+		this.document = {
+			...document,
+			hierarchyGroups: normalizeHierarchyGroups(document.hierarchyGroups, document.registers),
+		};
+		this.selectedKind = selection.selectedKind;
+		this.selectedRegisterId = selection.selectedRegisterId;
+		this.selectedGroupPath = selection.selectedGroupPath;
+		this.selectedFieldId = selection.selectedFieldId;
+		this.repairSelection();
+		this.revealRestoredSelection();
+		this.setDirty(nextDirty);
+	}
+
+	private selectionSnapshot(): SelectionSnapshot {
+		return {
+			selectedKind: this.selectedKind,
+			selectedRegisterId: this.selectedRegisterId,
+			selectedGroupPath: this.selectedGroupPath,
+			selectedFieldId: this.selectedFieldId,
+		};
+	}
+
+	private repairSelection() {
+		if (this.selectedKind === 'register') {
+			const register = this.document.registers.find((item) => item.id === this.selectedRegisterId);
+			if (register) {
+				this.selectedGroupPath = register.group;
+				if (!register.fields.some((field) => field.id === this.selectedFieldId)) {
+					this.selectedFieldId = register.fields[0]?.id ?? '';
+				}
+				ui.setExpandedFieldsFor(register);
+				return;
+			}
+		}
+
+		const group = groupForPath(
+			this.selectedGroupPath,
+			this.document.hierarchyGroups,
+			this.addrmapLabel,
+		);
+		if (this.selectedKind === 'folder' && group) {
+			this.selectedRegisterId = '';
+			this.selectedFieldId = '';
+			ui.expandedFieldIds = new SvelteSet();
+			return;
+		}
+
+		this.selectFirstAvailable();
+	}
+
+	private revealRestoredSelection() {
+		if (this.selectedKind === 'register') {
+			this.revealGroupPath(this.selectedRegister.group);
+			return;
+		}
+		this.revealGroupPath(this.selectedGroupPath);
 	}
 
 	canMutate() {
@@ -429,24 +576,19 @@ export class EditorState {
 			? remaining.findIndex((register) => register.id === targetRegisterId)
 			: -1;
 
-		if (targetIndex === -1) {
-			this.document = { ...this.document, registers: [...remaining, nextRegister] };
-		} else {
-			const insertIndex = position === 'before' ? targetIndex : targetIndex + 1;
-			this.document = {
-				...this.document,
-				registers: [
-					...remaining.slice(0, insertIndex),
-					nextRegister,
-					...remaining.slice(insertIndex),
-				],
-			};
-		}
+		const nextRegisters =
+			targetIndex === -1
+				? [...remaining, nextRegister]
+				: [
+						...remaining.slice(0, position === 'before' ? targetIndex : targetIndex + 1),
+						nextRegister,
+						...remaining.slice(position === 'before' ? targetIndex : targetIndex + 1),
+					];
+		this.commitDocumentChange({ ...this.document, registers: nextRegisters });
 
 		if (this.selectedKind === 'register' && this.selectedRegisterId === registerId) {
 			this.selectedGroupPath = groupPath;
 		}
-		this.markDirty();
 	}
 
 	async addSubdir(parentPath = '') {
@@ -459,11 +601,13 @@ export class EditorState {
 			path: parentPath ? `${parentPath}/${label}` : label,
 		};
 
-		this.document = { ...this.document, hierarchyGroups: [...this.document.hierarchyGroups, next] };
+		this.commitDocumentChange({
+			...this.document,
+			hierarchyGroups: [...this.document.hierarchyGroups, next],
+		});
 		ui.expandedBlocks = new SvelteSet([...ui.expandedBlocks, next.id]);
 		ui.renamingGroupId = next.id;
 		this.selectGroup(next.path);
-		this.markDirty();
 
 		await tick();
 		focusAndSelect(`[data-group-name-input="${next.id}"]`);
@@ -494,9 +638,12 @@ export class EditorState {
 			(this.selectedGroupPath === group.path ||
 				this.selectedGroupPath.startsWith(`${group.path}/`));
 
-		this.document = { ...this.document, hierarchyGroups: nextGroups, registers: nextRegisters };
+		this.commitDocumentChange({
+			...this.document,
+			hierarchyGroups: nextGroups,
+			registers: nextRegisters,
+		});
 		ui.expandedBlocks = new SvelteSet([...ui.expandedBlocks].filter((id) => id !== groupId));
-		this.markDirty();
 
 		if (
 			selectedFolderDeleted ||
@@ -525,14 +672,13 @@ export class EditorState {
 				? { ...register, group: `${nextPath}${register.group.slice(previousPath.length)}` }
 				: register,
 		);
-		this.document = { ...this.document, hierarchyGroups, registers };
+		this.commitDocumentChange({ ...this.document, hierarchyGroups, registers });
 		if (
 			this.selectedGroupPath === previousPath ||
 			this.selectedGroupPath.startsWith(`${previousPath}/`)
 		) {
 			this.selectedGroupPath = `${nextPath}${this.selectedGroupPath.slice(previousPath.length)}`;
 		}
-		this.markDirty();
 	}
 
 	async addRegister(
@@ -560,7 +706,7 @@ export class EditorState {
 			fields: [createDefaultField(`field-${Date.now()}`)],
 		};
 
-		this.document = { ...this.document, registers: [...this.document.registers, next] };
+		this.commitDocumentChange({ ...this.document, registers: [...this.document.registers, next] });
 		this.selectedRegisterId = next.id;
 		this.selectedKind = 'register';
 		this.selectedGroupPath = groupPath;
@@ -571,7 +717,6 @@ export class EditorState {
 			rootBlockId,
 			...(destinationGroup ? [destinationGroup.id] : []),
 		]);
-		this.markDirty();
 
 		await tick();
 		focusAndSelect(`[data-register-title-input="${next.id}"]`);
@@ -585,8 +730,7 @@ export class EditorState {
 		if (deletingIndex === -1) return;
 
 		const nextRegisters = this.document.registers.filter((register) => register.id !== registerId);
-		this.document = { ...this.document, registers: nextRegisters };
-		this.markDirty();
+		this.commitDocumentChange({ ...this.document, registers: nextRegisters });
 
 		if (this.selectedKind !== 'register' || this.selectedRegisterId !== registerId) return;
 
@@ -629,17 +773,16 @@ export class EditorState {
 			color: bitColors[this.selectedRegister.fields.length % bitColors.length],
 		};
 
-		this.document = {
+		this.commitDocumentChange({
 			...this.document,
 			registers: this.document.registers.map((register) =>
 				register.id === this.selectedRegister.id
 					? { ...register, fields: [...register.fields, next] }
 					: register,
 			),
-		};
+		});
 		this.selectedFieldId = next.id;
 		ui.expandedFieldIds = new SvelteSet([...ui.expandedFieldIds, next.id]);
-		this.markDirty();
 
 		await tick();
 		focusAndSelect(`[data-field-name-input="${next.id}"]`);
@@ -648,35 +791,33 @@ export class EditorState {
 	removeField(fieldId: string) {
 		if (!this.canEditStructure()) return;
 		const remaining = this.selectedRegister.fields.filter((field) => field.id !== fieldId);
-		this.document = {
+		this.commitDocumentChange({
 			...this.document,
 			registers: this.document.registers.map((register) =>
 				register.id === this.selectedRegister.id ? { ...register, fields: remaining } : register,
 			),
-		};
+		});
 		this.selectedFieldId = remaining[0]?.id ?? '';
 		ui.expandedFieldIds = new SvelteSet([...ui.expandedFieldIds].filter((id) => id !== fieldId));
-		this.markDirty();
 	}
 
 	updateSelectedRegister(changes: Partial<Register>) {
 		const nextChanges = this.registerChangesWithDerivedName(changes);
 		if (!this.canEditRegisterChanges(this.selectedRegister.id, nextChanges)) return;
-		this.document = {
+		this.commitDocumentChange({
 			...this.document,
 			registers: updateRegisterInRegisters(
 				this.document.registers,
 				this.selectedRegister.id,
 				nextChanges,
 			),
-		};
-		this.markDirty();
+		});
 	}
 
 	updateField(fieldId: string, changes: Partial<Field>) {
 		const nextChanges = this.fieldChangesWithDerivedName(fieldId, changes);
 		if (!this.canEditFieldChanges(fieldId, nextChanges)) return;
-		this.document = {
+		this.commitDocumentChange({
 			...this.document,
 			registers: updateFieldInRegisters(
 				this.document.registers,
@@ -684,8 +825,7 @@ export class EditorState {
 				fieldId,
 				nextChanges,
 			),
-		};
-		this.markDirty();
+		});
 	}
 
 	updateResetDraft(fieldId: string, rawValue: string) {
@@ -727,7 +867,7 @@ export class EditorState {
 
 		const nextId = `enum-${Date.now()}`;
 		const nextValue = field.reset;
-		this.document = {
+		this.commitDocumentChange({
 			...this.document,
 			registers: this.document.registers.map((register) => {
 				if (register.id !== this.selectedRegister.id) return register;
@@ -752,9 +892,8 @@ export class EditorState {
 					}),
 				};
 			}),
-		};
+		});
 		ui.clearNumericDraft(`reset:${fieldId}`);
-		this.markDirty();
 
 		await tick();
 		focusAndSelect(`[data-enum-variant-name-input="${fieldId}:${nextId}"]`);
@@ -772,7 +911,7 @@ export class EditorState {
 			field?.resetEnumValueId === enumValueId && changes.value !== undefined
 				? { reset: changes.value }
 				: {};
-		this.document = {
+		this.commitDocumentChange({
 			...this.document,
 			registers: updateEnumValueInRegisters(
 				this.document.registers,
@@ -782,8 +921,7 @@ export class EditorState {
 				changes,
 				fieldChanges,
 			),
-		};
-		this.markDirty();
+		});
 	}
 
 	updateEnumNumericValue(fieldId: string, enumValueId: string, rawValue: string) {
@@ -804,11 +942,10 @@ export class EditorState {
 		}
 		ui.clearNumericDraft(draftKey);
 
-		this.document = {
+		this.commitDocumentChange({
 			...this.document,
 			registers: sortFieldEnumValues(this.document.registers, this.selectedRegister.id, fieldId),
-		};
-		this.markDirty();
+		});
 
 		if (!keepFocus) return;
 		await tick();
@@ -825,7 +962,7 @@ export class EditorState {
 		const nextId = `enum-${Date.now()}`;
 		const shouldAutoSelectReset = shouldFocusEnumName;
 
-		this.document = {
+		this.commitDocumentChange({
 			...this.document,
 			registers: this.document.registers.map((register) => {
 				if (register.id !== this.selectedRegister.id) return register;
@@ -851,8 +988,7 @@ export class EditorState {
 					}),
 				};
 			}),
-		};
-		this.markDirty();
+		});
 
 		await tick();
 		focusAndSelect(
@@ -864,7 +1000,7 @@ export class EditorState {
 
 	removeEnumValue(fieldId: string, enumValueId: string) {
 		if (!this.canEditStructure()) return;
-		this.document = {
+		this.commitDocumentChange({
 			...this.document,
 			registers: this.document.registers.map((register) => {
 				if (register.id !== this.selectedRegister.id) return register;
@@ -882,8 +1018,7 @@ export class EditorState {
 					),
 				};
 			}),
-		};
-		this.markDirty();
+		});
 	}
 
 	private canEditRegisterChanges(registerId: string, changes: Partial<Register>) {
@@ -957,6 +1092,14 @@ export function numberInput(event: Event) {
 	return Number((event.currentTarget as HTMLInputElement).value);
 }
 
+export function beginGroupedDocumentEdit() {
+	editor.beginGroupedDocumentEdit();
+}
+
+export function endGroupedDocumentEdit() {
+	editor.endGroupedDocumentEdit();
+}
+
 function focusAndSelect(selector: string) {
 	const input = globalThis.document.querySelector<HTMLInputElement | HTMLTextAreaElement>(selector);
 	input?.focus();
@@ -979,3 +1122,25 @@ function fieldSourceProp(prop: string): EditableFieldProp | undefined {
 }
 
 export const editor = new EditorState();
+
+interface SelectionSnapshot {
+	selectedKind: SelectionKind;
+	selectedRegisterId: string;
+	selectedGroupPath: string;
+	selectedFieldId: string;
+}
+
+interface HistoryEntry {
+	documentBefore: RdlDocument;
+	documentAfter: RdlDocument;
+	selectionBefore: SelectionSnapshot;
+	selectionAfter: SelectionSnapshot;
+	dirtyBefore: boolean;
+	dirtyAfter: boolean;
+}
+
+interface GroupedEdit {
+	documentBefore: RdlDocument;
+	selectionBefore: SelectionSnapshot;
+	dirtyBefore: boolean;
+}

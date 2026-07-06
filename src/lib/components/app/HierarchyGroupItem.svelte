@@ -42,10 +42,17 @@
 							data-group-name-input={group.id}
 							value={group.label}
 							disabled={editor.structureReadOnly}
+							onfocus={() => editor.beginGroupedDocumentEdit()}
 							oninput={(event) => editor.updateGroupLabel(group.id, textInput(event))}
-							onblur={() => editor.finishRenameGroup()}
+							onblur={() => {
+								editor.endGroupedDocumentEdit();
+								editor.finishRenameGroup();
+							}}
 							onkeydown={(event) => {
-								if (event.key === 'Enter') editor.finishRenameGroup();
+								if (event.key === 'Enter') {
+									editor.endGroupedDocumentEdit();
+									editor.finishRenameGroup();
+								}
 							}}
 						/>
 					</div>

@@ -70,6 +70,8 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
+    "@tanstack/hotkeys": "^0.8.0",
+    "@tanstack/svelte-hotkeys": "^0.10.0",
     "@tauri-apps/api": "^2.11.1",
     "effect": "^3.21.4",
     "flexsearch": "^0.8.212"

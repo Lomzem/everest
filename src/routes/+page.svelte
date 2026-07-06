@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import AppHotkeys from '$lib/components/app/AppHotkeys.svelte';
 	import EditorShell from '$lib/components/app/EditorShell.svelte';
 	import WelcomeScreen from '$lib/components/app/WelcomeScreen.svelte';
 	import '$lib/desktop-api';
@@ -29,6 +30,8 @@
 			: `${editor.dirty ? '* ' : ''}${editor.documentLabel}`}</title
 	>
 </svelte:head>
+
+<AppHotkeys />
 
 {#if editor.appView === 'welcome'}
 	<WelcomeScreen />

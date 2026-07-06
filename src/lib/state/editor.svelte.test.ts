@@ -156,6 +156,123 @@ describe('EditorState derived names', () => {
 			value: 2,
 		});
 	});
+
+	it('undoes and redoes deleting a register', async () => {
+		let now = 1;
+		vi.spyOn(Date, 'now').mockImplementation(() => now++);
+		const state = new EditorState();
+		state.newDocument();
+		await state.addRegister('');
+		const registerId = state.selectedRegister.id;
+
+		state.deleteRegister(registerId);
+		expect(state.document.registers).toHaveLength(0);
+
+		state.undo();
+		expect(state.document.registers.map((register) => register.id)).toEqual([registerId]);
+		expect(state.selectedRegisterId).toBe(registerId);
+
+		state.redo();
+		expect(state.document.registers).toHaveLength(0);
+	});
+
+	it('undoes deleting a field with selection restored', async () => {
+		let now = 1;
+		vi.spyOn(Date, 'now').mockImplementation(() => now++);
+		const state = new EditorState();
+		state.newDocument();
+		await state.addRegister('');
+		await state.addField();
+		const fieldId = state.selectedFieldId;
+
+		state.removeField(fieldId);
+		expect(state.selectedRegister.fields.some((field) => field.id === fieldId)).toBe(false);
+
+		state.undo();
+		expect(state.selectedRegister.fields.map((field) => field.id)).toContain(fieldId);
+		expect(state.selectedFieldId).toBe(fieldId);
+	});
+
+	it('undoes deleting a folder and its nested registers', async () => {
+		let now = 1;
+		vi.spyOn(Date, 'now').mockImplementation(() => now++);
+		const state = new EditorState();
+		state.newDocument();
+		await state.addSubdir('');
+		const groupId = state.document.hierarchyGroups.at(-1)?.id ?? '';
+		const groupPath = state.document.hierarchyGroups.at(-1)?.path ?? '';
+		await state.addRegister(groupPath);
+		const registerId = state.selectedRegister.id;
+
+		state.deleteGroup(groupId);
+		expect(state.document.registers.some((register) => register.id === registerId)).toBe(false);
+
+		state.undo();
+		expect(state.document.hierarchyGroups.some((group) => group.id === groupId)).toBe(true);
+		expect(state.document.registers.some((register) => register.id === registerId)).toBe(true);
+	});
+
+	it('undoes deleting an enum value and restores reset enum reference', async () => {
+		const state = new EditorState();
+		state.applyDocument(enumResetDocument(), '/tmp/top.rdl', false);
+		state.selectRegister('control');
+
+		state.removeEnumValue('control-mode', 'control-mode-on');
+		expect(state.selectedRegister.fields[0].resetEnumValueId).toBeUndefined();
+
+		state.undo();
+		expect(state.selectedRegister.fields[0].resetEnumValueId).toBe('control-mode-on');
+		expect(state.selectedRegister.fields[0].values.map((value) => value.id)).toContain(
+			'control-mode-on',
+		);
+	});
+
+	it('clears redo when a new edit follows undo', async () => {
+		let now = 1;
+		vi.spyOn(Date, 'now').mockImplementation(() => now++);
+		const state = new EditorState();
+		state.newDocument();
+		await state.addRegister('');
+		const firstRegisterId = state.selectedRegister.id;
+
+		state.deleteRegister(firstRegisterId);
+		state.undo();
+		expect(state.canRedo).toBe(true);
+
+		await state.addRegister('');
+		expect(state.canRedo).toBe(false);
+	});
+
+	it('clears history when replacing the document', async () => {
+		const state = new EditorState();
+		state.newDocument();
+		await state.addRegister('');
+		expect(state.canUndo).toBe(true);
+
+		state.applyDocument(enumResetDocument(), '/tmp/top.rdl', false);
+		expect(state.canUndo).toBe(false);
+		expect(state.canRedo).toBe(false);
+	});
+
+	it('groups typed edits into one undo step', async () => {
+		let now = 1;
+		vi.spyOn(Date, 'now').mockImplementation(() => now++);
+		const state = new EditorState();
+		state.newDocument();
+		await state.addRegister('');
+		state.clearHistory();
+		state.beginGroupedDocumentEdit();
+
+		state.updateSelectedRegister({ title: 'A' });
+		state.updateSelectedRegister({ title: 'AB' });
+		state.updateSelectedRegister({ title: 'ABC' });
+		state.endGroupedDocumentEdit();
+
+		expect(state.undoStack).toHaveLength(1);
+		expect(state.selectedRegister.title).toBe('ABC');
+		state.undo();
+		expect(state.selectedRegister.title).toBe('New Control Register');
+	});
 });
 
 function sourceDocument(): RdlDocument {
@@ -213,6 +330,8 @@ function enumResetDocument(): RdlDocument {
 				fields: [
 					{
 						...sourceDocument().registers[0].fields[0],
+						reset: 1,
+						resetEnumValueId: 'control-mode-on',
 						enumName: 'mode_e',
 						values: [
 							{ id: 'control-mode-off', name: 'OFF', value: 0, desc: '' },

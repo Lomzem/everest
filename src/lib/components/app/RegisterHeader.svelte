@@ -29,8 +29,10 @@
 							class="w-20 px-2 font-mono text-base outline-none"
 							value={formatEditableAddress(editor.selectedRegister.address)}
 							disabled={!editor.canEditSelectedRegister('address')}
+							onfocus={() => editor.beginGroupedDocumentEdit()}
 							oninput={(event) =>
 								editor.updateSelectedRegister({ address: parseAddress(textInput(event)) })}
+							onblur={() => editor.endGroupedDocumentEdit()}
 						/>
 					</span>
 				</label>
@@ -90,7 +92,9 @@
 					data-register-title-input={editor.selectedRegister.id}
 					value={editor.selectedRegister.title}
 					disabled={!editor.canEditSelectedRegister('title')}
+					onfocus={() => editor.beginGroupedDocumentEdit()}
 					oninput={(event) => editor.updateSelectedRegister({ title: textInput(event) })}
+					onblur={() => editor.endGroupedDocumentEdit()}
 					aria-label="Register display name"
 				/>
 			</label>
@@ -103,7 +107,9 @@
 					data-register-name-input={editor.selectedRegister.id}
 					value={editor.selectedRegister.name}
 					disabled={!editor.canEditSelectedRegister('name')}
+					onfocus={() => editor.beginGroupedDocumentEdit()}
 					oninput={(event) => editor.updateSelectedRegister({ name: textInput(event) })}
+					onblur={() => editor.endGroupedDocumentEdit()}
 					aria-label="Register identifier"
 				/>
 			</label>
@@ -115,7 +121,9 @@
 					class="min-h-16 w-full resize-none rounded-md border border-input bg-background px-2 py-1 text-base leading-6 text-muted-foreground outline-none hover:border-primary/60 focus:border-primary"
 					value={editor.selectedRegister.desc}
 					disabled={!editor.canEditSelectedRegister('desc')}
+					onfocus={() => editor.beginGroupedDocumentEdit()}
 					oninput={(event) => editor.updateSelectedRegister({ desc: textInput(event) })}
+					onblur={() => editor.endGroupedDocumentEdit()}
 					aria-label="Register description"></textarea>
 			</label>
 		</div>

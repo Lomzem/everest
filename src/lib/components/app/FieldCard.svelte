@@ -105,7 +105,9 @@
 							data-field-name-input={field.id}
 							value={field.title}
 							disabled={!editor.canEditField(field.id, 'title')}
+							onfocus={() => editor.beginGroupedDocumentEdit()}
 							oninput={(event) => editor.updateField(field.id, { title: textInput(event) })}
+							onblur={() => editor.endGroupedDocumentEdit()}
 						/>
 					</label>
 					<label class="space-y-1">
@@ -114,7 +116,9 @@
 							class="h-9 w-full rounded-md border border-input bg-background px-2 font-mono text-base outline-none focus:border-primary"
 							value={field.name}
 							disabled={!editor.canEditField(field.id, 'name')}
+							onfocus={() => editor.beginGroupedDocumentEdit()}
 							oninput={(event) => editor.updateField(field.id, { name: textInput(event) })}
+							onblur={() => editor.endGroupedDocumentEdit()}
 						/>
 					</label>
 					<label class="space-y-1">
@@ -126,7 +130,9 @@
 							max={editor.selectedRegister.width - 1}
 							value={field.msb}
 							disabled={!editor.canEditField(field.id, 'bitRange')}
+							onfocus={() => editor.beginGroupedDocumentEdit()}
 							oninput={(event) => editor.updateField(field.id, { msb: numberInput(event) })}
+							onblur={() => editor.endGroupedDocumentEdit()}
 						/>
 					</label>
 					<label class="space-y-1">
@@ -138,7 +144,9 @@
 							max={editor.selectedRegister.width - 1}
 							value={field.lsb}
 							disabled={!editor.canEditField(field.id, 'bitRange')}
+							onfocus={() => editor.beginGroupedDocumentEdit()}
 							oninput={(event) => editor.updateField(field.id, { lsb: numberInput(event) })}
+							onblur={() => editor.endGroupedDocumentEdit()}
 						/>
 					</label>
 					<div class="space-y-1">
@@ -241,8 +249,12 @@
 											field.reset,
 											fieldBitWidth(field),
 										)}
+										onfocus={() => editor.beginGroupedDocumentEdit()}
 										oninput={(event) => editor.updateResetDraft(field.id, textInput(event))}
-										onblur={() => editor.commitResetDraft(field.id)}
+										onblur={() => {
+											editor.commitResetDraft(field.id);
+											editor.endGroupedDocumentEdit();
+										}}
 									/>
 								</span>
 							{/if}
@@ -296,8 +308,9 @@
 						class="min-h-20 w-full resize-none rounded-md border border-input bg-background p-2 text-base leading-6 outline-none focus:border-primary"
 						value={field.desc}
 						disabled={!editor.canEditField(field.id, 'desc')}
+						onfocus={() => editor.beginGroupedDocumentEdit()}
 						oninput={(event) => editor.updateField(field.id, { desc: textInput(event) })}
-					></textarea>
+						onblur={() => editor.endGroupedDocumentEdit()}></textarea>
 				</label>
 
 				<EnumEditor {field} />
