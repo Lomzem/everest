@@ -95,13 +95,15 @@ describe('RDL domain helpers', () => {
 			width: 8,
 			fields: [
 				{ ...createDefaultField('upper'), title: 'Upper', msb: 7, lsb: 4 },
+				{ ...createDefaultField('flag'), title: 'Flag', msb: 2, lsb: 2 },
 				{ ...createDefaultField('lower'), title: 'Lower', msb: 1, lsb: 0 },
 			],
 		});
 
 		expect(buildBitSegments(register).map((segment) => segment.label)).toEqual([
 			'Upper [7:4]',
-			'RSVD [3:2]',
+			'RSVD [3:3]',
+			'Flag [2]',
 			'Lower [1:0]',
 		]);
 	});

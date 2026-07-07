@@ -31,7 +31,7 @@ export function buildBitSegments(register: Register): BitSegment[] {
 		}
 		segments.push({
 			key: field.id,
-			label: high === low ? field.title : `${field.title} [${high}:${low}]`,
+			label: high === low ? `${field.title} [${high}]` : `${field.title} [${high}:${low}]`,
 			span: high - low + 1,
 			classes: field.color,
 			fieldId: field.id,
