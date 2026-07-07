@@ -197,6 +197,16 @@
 				</div>
 			{/each}
 		</div>
+		<div class="mt-3 flex justify-center">
+			<button
+				class="inline-flex h-10 min-w-48 items-center justify-center gap-2 rounded-md border border-border px-4 text-base font-medium text-primary hover:bg-muted"
+				disabled={editor.structureReadOnly}
+				onclick={addEncoding}
+			>
+				<Plus size={14} />
+				Add Encoding
+			</button>
+		</div>
 	</div>
 {:else}
 	<button
