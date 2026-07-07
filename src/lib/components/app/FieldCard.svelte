@@ -2,7 +2,7 @@
 	import { Check, ChevronDown, ChevronRight, Trash2 } from '@lucide/svelte';
 	import type { Access, Field } from '$lib/rdl/model';
 	import { fieldBitWidth, formatValue, valuePrefix } from '$lib/rdl/format';
-	import { bitRangeErrors, resetErrors } from '$lib/rdl/validation';
+	import { bitRangeErrors, fieldOverlapErrors, resetErrors } from '$lib/rdl/validation';
 	import { accessOptions, editor, numberInput, textInput } from '$lib/state/editor.svelte';
 	import { ui } from '$lib/state/ui.svelte';
 	import * as Command from '$lib/components/ui/command';
@@ -24,7 +24,10 @@
 	);
 	const resetValidationErrors = $derived(resetErrors(field, ui.valueMode));
 	const resetNumericText = $derived(formatValue(field.reset, ui.valueMode, fieldBitWidth(field)));
-	const bitRangeValidationErrors = $derived(bitRangeErrors(field));
+	const bitRangeValidationErrors = $derived([
+		...bitRangeErrors(field),
+		...fieldOverlapErrors(editor.selectedRegister, field),
+	]);
 	const errorClass = (errors: string[]) =>
 		errors.length
 			? 'border-destructive/50 focus:border-destructive'

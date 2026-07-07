@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Effect } from 'effect';
-import { buildBitSegments } from './bit-layout';
+import { buildBitCells, buildBitSegments } from './bit-layout';
 import { exportRdlDocument } from './export';
 import {
 	addressInputPattern,
@@ -15,7 +15,14 @@ import {
 import { buildFolderChildren, normalizeHierarchyGroups } from './hierarchy';
 import { createBlankDocument, createDefaultField, type Field, type Register } from './model';
 import { decodeRdlDocument } from './schema';
-import { bitRangeErrors, enumValueErrors, identifierErrors, resetErrors } from './validation';
+import {
+	bitRangeErrors,
+	enumValueErrors,
+	fieldOverlapErrors,
+	fieldOverlaps,
+	identifierErrors,
+	resetErrors,
+} from './validation';
 
 const createTestRegister = (overrides: Partial<Register> = {}): Register => ({
 	id: 'test-register',
@@ -106,6 +113,71 @@ describe('RDL domain helpers', () => {
 			'Flag [2]',
 			'Lower [1:0]',
 		]);
+	});
+
+	it('reports no field overlap for adjacent ranges', () => {
+		const register = createTestRegister({
+			fields: [
+				{ ...createDefaultField('upper'), title: 'Upper', msb: 7, lsb: 4 },
+				{ ...createDefaultField('lower'), title: 'Lower', msb: 3, lsb: 0 },
+			],
+		});
+
+		expect(fieldOverlaps(register)).toEqual([]);
+		expect(fieldOverlapErrors(register, register.fields[0])).toEqual([]);
+	});
+
+	it('reports partial field overlaps', () => {
+		const register = createTestRegister({
+			fields: [
+				{ ...createDefaultField('upper'), title: 'Upper', msb: 4, lsb: 2 },
+				{ ...createDefaultField('lower'), title: 'Lower', msb: 3, lsb: 1 },
+			],
+		});
+
+		expect(fieldOverlaps(register)).toEqual([
+			{
+				fieldIds: ['upper', 'lower'],
+				fieldTitles: ['Upper', 'Lower'],
+				high: 3,
+				low: 2,
+			},
+		]);
+		expect(fieldOverlapErrors(register, register.fields[0])).toEqual([
+			'Overlaps `Lower` on bits [3:2].',
+		]);
+	});
+
+	it('reports identical single-bit field overlaps', () => {
+		const register = createTestRegister({
+			fields: [
+				{ ...createDefaultField('ready'), title: 'Ready', msb: 1, lsb: 1 },
+				{ ...createDefaultField('valid'), title: 'Valid', msb: 1, lsb: 1 },
+			],
+		});
+
+		expect(fieldOverlapErrors(register, register.fields[1])).toEqual([
+			'Overlaps `Ready` on bit [1].',
+		]);
+		expect(buildBitCells(register).find((cell) => cell.bit === 1)).toMatchObject({
+			conflict: true,
+			overlapFieldId: 'ready',
+			overlapLabel: 'Overlap [1]: Ready, Valid',
+		});
+	});
+
+	it('does not report overlaps for reversed invalid ranges', () => {
+		const register = createTestRegister({
+			fields: [
+				{ ...createDefaultField('invalid'), title: 'Invalid', msb: 1, lsb: 4 },
+				{ ...createDefaultField('lower'), title: 'Lower', msb: 3, lsb: 0 },
+			],
+		});
+
+		expect(bitRangeErrors(register.fields[0])).toEqual([
+			'MSB must be greater than or equal to LSB.',
+		]);
+		expect(fieldOverlaps(register)).toEqual([]);
 	});
 
 	it('reports enum values outside field width and duplicates', () => {

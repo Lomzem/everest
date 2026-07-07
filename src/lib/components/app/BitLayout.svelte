@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { buildBitAxisLabels, buildBitSegments } from '$lib/rdl/bit-layout';
+	import { buildBitAxisLabels, buildBitOverlapRuns, buildBitRuns } from '$lib/rdl/bit-layout';
 	import { editor } from '$lib/state/editor.svelte';
 
-	const bitSegments = $derived(buildBitSegments(editor.selectedRegister));
+	const bitRuns = $derived(buildBitRuns(editor.selectedRegister));
+	const bitOverlapRuns = $derived(buildBitOverlapRuns(editor.selectedRegister));
 	const bitAxisLabels = $derived(buildBitAxisLabels(editor.selectedRegister.width));
 </script>
 
@@ -18,23 +19,60 @@
 			</span>
 		{/each}
 	</div>
-	<div
-		class="grid h-12 overflow-hidden rounded-md border border-border"
-		style={`grid-template-columns: repeat(${editor.selectedRegister.width}, minmax(0, 1fr));`}
-	>
-		{#each bitSegments as segment (segment.key)}
-			<button
-				class={`min-w-0 border-r px-2 text-center text-base font-medium ${segment.classes} ${
-					segment.fieldId === editor.selectedFieldId
-						? 'outline outline-2 outline-primary outline-offset-[-2px]'
-						: ''
-				}`}
-				style={`grid-column: span ${segment.span} / span ${segment.span};`}
-				onclick={() => segment.fieldId && (editor.selectedFieldId = segment.fieldId)}
-				title={segment.label}
-			>
-				<span class="block truncate">{segment.label}</span>
-			</button>
-		{/each}
+	<div class="relative h-12 overflow-hidden rounded-md border border-border">
+		<div
+			class="grid h-full"
+			style={`grid-template-columns: repeat(${editor.selectedRegister.width}, minmax(0, 1fr));`}
+		>
+			{#each bitRuns as run (run.key)}
+				<div
+					class={`min-w-0 border-r px-2 text-center text-base font-medium ${run.classes} ${
+						run.fieldId === editor.selectedFieldId
+							? 'outline outline-2 outline-primary outline-offset-[-2px]'
+							: ''
+					}`}
+					style={`grid-column: span ${run.span} / span ${run.span};`}
+					title={run.label}
+				></div>
+			{/each}
+		</div>
+		<div
+			class="pointer-events-none absolute inset-0 z-10 grid"
+			style={`grid-template-columns: repeat(${editor.selectedRegister.width}, minmax(0, 1fr));`}
+		>
+			{#each bitOverlapRuns as overlap (overlap.key)}
+				<button
+					class="pointer-events-auto relative min-w-0 border-x border-destructive/70"
+					style={`grid-column: ${overlap.columnStart} / span ${overlap.span}; background-color: color-mix(in oklch, var(--destructive) 16%, transparent); background-image: repeating-linear-gradient(135deg, color-mix(in oklch, var(--destructive) 70%, transparent) 0, color-mix(in oklch, var(--destructive) 70%, transparent) 4px, transparent 4px, transparent 8px);`}
+					onclick={() => overlap.fieldId && (editor.selectedFieldId = overlap.fieldId)}
+					title={overlap.label}
+				>
+					<span
+						class="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-destructive text-base font-semibold text-destructive-foreground"
+					>
+						!
+					</span>
+				</button>
+			{/each}
+		</div>
+		<div
+			class="pointer-events-none absolute inset-0 z-20 grid"
+			style={`grid-template-columns: repeat(${editor.selectedRegister.width}, minmax(0, 1fr));`}
+		>
+			{#each bitRuns as run (run.key)}
+				<button
+					class={`pointer-events-auto min-w-0 px-2 text-center text-base font-medium ${
+						run.fieldId === editor.selectedFieldId
+							? 'outline outline-2 outline-primary outline-offset-[-2px]'
+							: ''
+					}`}
+					style={`grid-column: span ${run.span} / span ${run.span};`}
+					onclick={() => run.fieldId && (editor.selectedFieldId = run.fieldId)}
+					title={run.label}
+				>
+					<span class="block truncate">{run.label}</span>
+				</button>
+			{/each}
+		</div>
 	</div>
 </section>
