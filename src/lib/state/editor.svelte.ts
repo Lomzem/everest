@@ -781,8 +781,8 @@ export class EditorState {
 		const next: Register = {
 			id: `new-register-${Date.now()}`,
 			name: '',
-			title: 'New Control Register',
-			desc: 'Describe the register behavior.',
+			title: '',
+			desc: '',
 			address,
 			width: this.selectedRegister.width || 8,
 			group: groupPath,
@@ -847,8 +847,8 @@ export class EditorState {
 		const next: Field = {
 			id: `field-${Date.now()}`,
 			name: '',
-			title: 'New Field',
-			desc: 'Describe the field behavior.',
+			title: '',
+			desc: '',
 			msb: bit,
 			lsb: bit,
 			reset: 0,

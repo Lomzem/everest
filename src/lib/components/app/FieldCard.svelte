@@ -109,6 +109,7 @@
 						<input
 							class="h-9 w-full rounded-md border border-input bg-background px-2 text-base outline-none focus:border-primary"
 							data-field-name-input={field.id}
+							placeholder="New Field"
 							value={field.title}
 							disabled={!editor.canEditField(field.id, 'title')}
 							onfocus={() => editor.beginGroupedDocumentEdit()}
@@ -120,6 +121,7 @@
 						<span class="text-base font-medium text-muted-foreground">ID</span>
 						<input
 							class="h-9 w-full rounded-md border border-input bg-background px-2 font-mono text-base outline-none focus:border-primary"
+							placeholder="new_field"
 							value={field.name}
 							disabled={!editor.canEditField(field.id, 'name')}
 							onfocus={() => editor.beginGroupedDocumentEdit()}
@@ -349,6 +351,7 @@
 					<span class="text-base font-medium text-muted-foreground">Desc</span>
 					<textarea
 						class="min-h-20 w-full resize-none rounded-md border border-input bg-background p-2 text-base leading-6 outline-none focus:border-primary"
+						placeholder="Describe the field behavior."
 						value={field.desc}
 						disabled={!editor.canEditField(field.id, 'desc')}
 						onfocus={() => editor.beginGroupedDocumentEdit()}

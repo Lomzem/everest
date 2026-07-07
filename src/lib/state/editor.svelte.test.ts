@@ -28,6 +28,8 @@ describe('EditorState derived names', () => {
 		await state.addRegister('');
 
 		expect(state.selectedRegister.name).toBe('');
+		expect(state.selectedRegister.title).toBe('');
+		expect(state.selectedRegister.desc).toBe('');
 
 		state.updateSelectedRegister({ title: 'SDI' });
 		expect(state.selectedRegister.name).toBe('sdi');
@@ -48,6 +50,8 @@ describe('EditorState derived names', () => {
 		const fieldId = state.selectedFieldId;
 
 		expect(state.selectedField.name).toBe('');
+		expect(state.selectedField.title).toBe('');
+		expect(state.selectedField.desc).toBe('');
 
 		state.updateField(fieldId, { title: 'Output' });
 		expect(state.selectedField.name).toBe('output');
@@ -351,7 +355,7 @@ describe('EditorState derived names', () => {
 		expect(state.undoStack).toHaveLength(1);
 		expect(state.selectedRegister.title).toBe('ABC');
 		state.undo();
-		expect(state.selectedRegister.title).toBe('New Control Register');
+		expect(state.selectedRegister.title).toBe('');
 	});
 
 	it('restores persisted undo history across editor instances', async () => {

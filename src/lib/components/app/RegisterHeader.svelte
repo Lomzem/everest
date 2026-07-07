@@ -108,6 +108,7 @@
 				<input
 					class="w-full rounded-md border border-input bg-background px-2 py-2 text-2xl font-semibold leading-8 tracking-normal text-foreground outline-none hover:border-primary/60 focus:border-primary"
 					data-register-title-input={editor.selectedRegister.id}
+					placeholder="New Register"
 					value={editor.selectedRegister.title}
 					disabled={!editor.canEditSelectedRegister('title')}
 					onfocus={() => editor.beginGroupedDocumentEdit()}
@@ -123,6 +124,7 @@
 				<input
 					class="w-full rounded-md border border-input bg-background px-2 py-1 font-mono text-base text-muted-foreground outline-none hover:border-primary/60 focus:border-primary"
 					data-register-name-input={editor.selectedRegister.id}
+					placeholder="new_register"
 					value={editor.selectedRegister.name}
 					disabled={!editor.canEditSelectedRegister('name')}
 					onfocus={() => editor.beginGroupedDocumentEdit()}
@@ -137,6 +139,7 @@
 				>
 				<textarea
 					class="min-h-16 w-full resize-none rounded-md border border-input bg-background px-2 py-1 text-base leading-6 text-muted-foreground outline-none hover:border-primary/60 focus:border-primary"
+					placeholder="Describe the register."
 					value={editor.selectedRegister.desc}
 					disabled={!editor.canEditSelectedRegister('desc')}
 					onfocus={() => editor.beginGroupedDocumentEdit()}
