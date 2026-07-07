@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { tick } from 'svelte';
 	import {
 		ChevronDown,
 		ChevronRight,
@@ -29,18 +29,15 @@
 		});
 	}
 
-	onMount(() => {
-		const handleKeydown = (event: KeyboardEvent) => {
-			if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'f') {
-				event.preventDefault();
-				focusSearchInput();
-			}
-		};
-
-		globalThis.window.addEventListener('keydown', handleKeydown);
-		return () => globalThis.window.removeEventListener('keydown', handleKeydown);
-	});
+	function handleKeydown(event: KeyboardEvent) {
+		if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'f') {
+			event.preventDefault();
+			focusSearchInput();
+		}
+	}
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <aside
 	class={`${ui.leftCollapsed ? 'w-14' : resizable ? 'w-full' : 'w-80'} flex h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width]`}

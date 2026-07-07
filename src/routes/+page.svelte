@@ -8,23 +8,22 @@
 	import '$lib/desktop-api';
 	import { editor } from '$lib/state/editor.svelte';
 
+	function handleBeforeUnload(event: BeforeUnloadEvent) {
+		if (!editor.dirty) return;
+		event.preventDefault();
+		event.returnValue = '';
+	}
+
 	onMount(() => {
 		editor.restorePersistedSession();
 		void editor.syncWindowState();
-		const removeMenuListener = editor.subscribeMenuCommands();
-		const beforeUnload = (event: BeforeUnloadEvent) => {
-			if (!editor.dirty) return;
-			event.preventDefault();
-			event.returnValue = '';
-		};
 
-		globalThis.window.addEventListener('beforeunload', beforeUnload);
-		return () => {
-			removeMenuListener?.();
-			globalThis.window.removeEventListener('beforeunload', beforeUnload);
-		};
+		const removeMenuListener = editor.subscribeMenuCommands();
+		return () => removeMenuListener?.();
 	});
 </script>
+
+<svelte:window onbeforeunload={handleBeforeUnload} />
 
 <svelte:head>
 	<title

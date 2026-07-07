@@ -1,10 +1,14 @@
-import { Effect, Schema } from 'effect';
+import { Data, Effect, Schema } from 'effect';
 import { RdlDocumentSchema, decodeRdlDocument } from '$lib/rdl/schema';
 import type { RdlDocument } from '$lib/rdl/model';
 import type { AppView, SelectionKind } from '$lib/rdl/hierarchy';
 
 const storageKey = 'everest.editorSession';
 const sessionVersion = 1;
+
+class PersistedSessionInvalid extends Data.TaggedError('PersistedSessionInvalid')<{
+	readonly cause: unknown;
+}> {}
 
 const SelectionSnapshotSchema = Schema.Struct({
 	selectedKind: Schema.Literal('folder', 'register'),
@@ -65,24 +69,13 @@ export interface PersistedEditorSession {
 export function readPersistedEditorSession(): PersistedEditorSession | undefined {
 	if (typeof window === 'undefined') return undefined;
 
-	const stored = window.localStorage.getItem(storageKey);
-	if (!stored) return undefined;
-
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(stored);
-	} catch {
+	const session = Effect.runSyncExit(readPersistedEditorSessionEffect());
+	if (session._tag === 'Failure') {
 		clearPersistedEditorSession();
 		return undefined;
 	}
 
-	const decoded = Effect.runSyncExit(Schema.decodeUnknown(PersistedEditorSessionSchema)(parsed));
-	if (decoded._tag === 'Failure') {
-		clearPersistedEditorSession();
-		return undefined;
-	}
-
-	return normalizeSession(decoded.value as PersistedEditorSession);
+	return session.value;
 }
 
 export function writePersistedEditorSession(
@@ -90,45 +83,90 @@ export function writePersistedEditorSession(
 ) {
 	if (typeof window === 'undefined') return;
 
-	try {
-		window.localStorage.setItem(
-			storageKey,
-			JSON.stringify({ ...session, version: sessionVersion, savedAt: Date.now() }),
-		);
-	} catch {
-		// In-memory history still works if storage is unavailable or full.
-	}
+	Effect.runSync(
+		Effect.ignore(
+			Effect.try({
+				try: () =>
+					window.localStorage.setItem(
+						storageKey,
+						JSON.stringify({ ...session, version: sessionVersion, savedAt: Date.now() }),
+					),
+				catch: (cause) => new PersistedSessionInvalid({ cause }),
+			}),
+		),
+	);
 }
 
 export function clearPersistedEditorSession() {
 	if (typeof window === 'undefined') return;
-	window.localStorage.removeItem(storageKey);
+	Effect.runSync(
+		Effect.ignore(
+			Effect.try({
+				try: () => window.localStorage.removeItem(storageKey),
+				catch: (cause) => new PersistedSessionInvalid({ cause }),
+			}),
+		),
+	);
 }
 
-function normalizeSession(session: PersistedEditorSession): PersistedEditorSession | undefined {
-	const document = Effect.runSyncExit(decodeRdlDocument(session.document));
-	if (document._tag === 'Failure') {
-		clearPersistedEditorSession();
-		return undefined;
-	}
+function readPersistedEditorSessionEffect(): Effect.Effect<
+	PersistedEditorSession | undefined,
+	PersistedSessionInvalid
+> {
+	return Effect.gen(function* () {
+		const stored = yield* Effect.try({
+			try: () => window.localStorage.getItem(storageKey),
+			catch: (cause) => new PersistedSessionInvalid({ cause }),
+		});
+		if (!stored) return undefined;
 
-	try {
+		const parsed = yield* Effect.try({
+			try: () => JSON.parse(stored) as unknown,
+			catch: (cause) => new PersistedSessionInvalid({ cause }),
+		});
+		const session = yield* Schema.decodeUnknown(PersistedEditorSessionSchema)(parsed).pipe(
+			Effect.map((decoded) => decoded as PersistedEditorSession),
+			Effect.mapError((cause) => new PersistedSessionInvalid({ cause })),
+		);
+
+		return yield* normalizeSession(session);
+	});
+}
+
+function normalizeSession(
+	session: PersistedEditorSession,
+): Effect.Effect<PersistedEditorSession, PersistedSessionInvalid> {
+	return Effect.gen(function* () {
+		const document = yield* decodeRdlDocument(session.document).pipe(
+			Effect.mapError((cause) => new PersistedSessionInvalid({ cause })),
+		);
+		const undoStack = yield* Effect.forEach(session.undoStack, normalizeHistoryEntry);
+		const redoStack = yield* Effect.forEach(session.redoStack, normalizeHistoryEntry);
+
 		return {
 			...session,
-			document: document.value,
-			undoStack: session.undoStack.map(normalizeHistoryEntry),
-			redoStack: session.redoStack.map(normalizeHistoryEntry),
+			document,
+			undoStack,
+			redoStack,
 		};
-	} catch {
-		clearPersistedEditorSession();
-		return undefined;
-	}
+	});
 }
 
-function normalizeHistoryEntry(entry: HistoryEntry): HistoryEntry {
-	return {
-		...entry,
-		documentBefore: Effect.runSync(decodeRdlDocument(entry.documentBefore)),
-		documentAfter: Effect.runSync(decodeRdlDocument(entry.documentAfter)),
-	};
+function normalizeHistoryEntry(
+	entry: HistoryEntry,
+): Effect.Effect<HistoryEntry, PersistedSessionInvalid> {
+	return Effect.gen(function* () {
+		const documentBefore = yield* decodeRdlDocument(entry.documentBefore).pipe(
+			Effect.mapError((cause) => new PersistedSessionInvalid({ cause })),
+		);
+		const documentAfter = yield* decodeRdlDocument(entry.documentAfter).pipe(
+			Effect.mapError((cause) => new PersistedSessionInvalid({ cause })),
+		);
+
+		return {
+			...entry,
+			documentBefore,
+			documentAfter,
+		};
+	});
 }
