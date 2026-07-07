@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RdlDocument } from '$lib/rdl/model';
 import { prepareSourceBackedDocument } from '$lib/rdl/source-edits';
 import { EditorState } from './editor.svelte';
+import { ui } from './ui.svelte';
 
 describe('EditorState derived names', () => {
 	beforeEach(() => {
@@ -183,6 +184,20 @@ describe('EditorState derived names', () => {
 			'LOW',
 			'HIGH',
 		]);
+	});
+
+	it('adds enum metadata with editable placeholders instead of filled values', async () => {
+		vi.spyOn(Date, 'now').mockReturnValue(42);
+		const state = new EditorState();
+		state.newDocument();
+		await state.addRegister('');
+		await state.addField();
+		const fieldId = state.selectedRegister.fields[0].id;
+
+		await state.addEnumValue(fieldId);
+
+		expect(state.selectedRegister.fields[0].enumName).toBe('');
+		expect(ui.numericDrafts[`enum:${fieldId}:enum-42`]).toBe('');
 	});
 
 	it('sorts source-backed enum values by numeric value after commit', async () => {

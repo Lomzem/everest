@@ -4,6 +4,7 @@
 	import { enumValueErrors, identifierErrors } from '$lib/rdl/validation';
 	import {
 		fieldBitWidth,
+		formatEditableValue,
 		isValidEditableValueInput,
 		valueInputPattern,
 		valuePrefix,
@@ -54,6 +55,7 @@
 							enumNameErrors,
 						)}`}
 						data-enum-name-input={field.id}
+						placeholder={`${field.name}_e`}
 						value={field.enumName}
 						disabled={!editor.canEditField(field.id, 'enumName')}
 						title={enumNameErrors.join(' ')}
@@ -134,12 +136,13 @@
 									</span>
 								{/if}
 								<input
-									class="min-w-0 flex-1 py-0 pl-2 pr-6 font-mono text-base text-muted-foreground outline-none"
+									class="min-w-0 flex-1 py-0 pl-2 pr-6 font-mono text-base text-foreground outline-none"
 									data-enum-value-input={`${field.id}:${value.id}`}
 									type="text"
 									spellcheck="false"
 									inputmode={ui.valueMode === 'hex' ? 'text' : 'numeric'}
 									pattern={valueInputPattern(ui.valueMode)}
+									placeholder={formatEditableValue(value.value, ui.valueMode, fieldBitWidth(field))}
 									disabled={!editor.canEditEnumValue(field.id, value.id, 'value')}
 									value={ui.numericInputValue(
 										`enum:${field.id}:${value.id}`,
@@ -178,7 +181,8 @@
 						</span>
 					{/key}
 					<input
-						class="h-8 rounded-md border border-input bg-background px-2 text-muted-foreground outline-none focus:border-primary"
+						class="h-8 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-primary"
+						placeholder="Describe this encoding."
 						value={value.desc}
 						disabled={!editor.canEditEnumValue(field.id, value.id, 'desc')}
 						onfocus={() => editor.beginGroupedDocumentEdit()}

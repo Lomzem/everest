@@ -977,7 +977,7 @@ export class EditorState {
 									id: nextId,
 									name: `VALUE_${nextValue}`,
 									value: nextValue,
-									desc: 'Describe this encoding.',
+									desc: '',
 								},
 							],
 						};
@@ -1064,7 +1064,6 @@ export class EditorState {
 						if (field.id !== fieldId) return field;
 						return {
 							...field,
-							enumName: field.enumName || `${field.name}_e`,
 							reset: shouldAutoSelectReset ? nextValue : field.reset,
 							resetEnumValueId: shouldAutoSelectReset ? nextId : field.resetEnumValueId,
 							values: [
@@ -1073,7 +1072,7 @@ export class EditorState {
 									id: nextId,
 									name: `VALUE_${nextValue}`,
 									value: nextValue,
-									desc: 'Describe this encoding.',
+									desc: '',
 								},
 							],
 						};
@@ -1081,6 +1080,7 @@ export class EditorState {
 				};
 			}),
 		});
+		ui.updateNumericDraft(`enum:${fieldId}:${nextId}`, '');
 
 		await tick();
 		focusAndSelect(
