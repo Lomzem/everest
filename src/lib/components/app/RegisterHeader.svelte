@@ -122,7 +122,7 @@
 					>ID</span
 				>
 				<input
-					class="w-full rounded-md border border-input bg-background px-2 py-1 font-mono text-base text-muted-foreground outline-none hover:border-primary/60 focus:border-primary"
+					class="w-full rounded-md border border-input bg-background px-2 py-1 font-mono text-base text-foreground outline-none hover:border-primary/60 focus:border-primary"
 					data-register-name-input={editor.selectedRegister.id}
 					placeholder="new_register"
 					value={editor.selectedRegister.name}
@@ -138,7 +138,7 @@
 					>Desc</span
 				>
 				<textarea
-					class="min-h-16 w-full resize-none rounded-md border border-input bg-background px-2 py-1 text-base leading-6 text-muted-foreground outline-none hover:border-primary/60 focus:border-primary"
+					class="min-h-16 w-full resize-none rounded-md border border-input bg-background px-2 py-1 text-base leading-6 text-foreground outline-none hover:border-primary/60 focus:border-primary"
 					placeholder="Describe the register."
 					value={editor.selectedRegister.desc}
 					disabled={!editor.canEditSelectedRegister('desc')}
