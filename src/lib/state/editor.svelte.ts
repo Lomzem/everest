@@ -86,11 +86,14 @@ const editableEnumValueProps = new Set<string>([
 	'desc',
 ] satisfies EditableEnumValueProp[]);
 
+type DestructiveAction = 'new' | 'open' | 'quit';
+
 export class EditorState {
 	appView = $state<AppView>('welcome');
 	document = $state<RdlDocument>(createBlankDocument());
 	currentPath = $state('');
 	dirty = $state(false);
+	pendingDestructiveAction = $state<DestructiveAction>();
 	selectedKind = $state<SelectionKind>('folder');
 	selectedRegisterId = $state('');
 	selectedGroupPath = $state('');
@@ -182,12 +185,34 @@ export class EditorState {
 		this.setDirty(nextDirty);
 	}
 
-	confirmDiscardChanges() {
-		return (
-			this.appView === 'welcome' ||
-			!this.dirty ||
-			globalThis.window.confirm('Discard unsaved changes?')
-		);
+	private needsDiscardConfirmation() {
+		return this.appView === 'editor' && this.dirty;
+	}
+
+	private requestDestructiveAction(action: DestructiveAction) {
+		if (!this.needsDiscardConfirmation()) return false;
+		this.pendingDestructiveAction = action;
+		return true;
+	}
+
+	cancelPendingDestructiveAction() {
+		this.pendingDestructiveAction = undefined;
+	}
+
+	async confirmPendingDestructiveAction() {
+		const action = this.pendingDestructiveAction;
+		this.pendingDestructiveAction = undefined;
+		if (action === 'new') {
+			this.newDocument();
+			return;
+		}
+		if (action === 'open') {
+			await this.openDocument();
+			return;
+		}
+		if (action === 'quit') {
+			await this.quitApplication();
+		}
 	}
 
 	setDirty(nextDirty: boolean) {
@@ -435,13 +460,26 @@ export class EditorState {
 		return true;
 	}
 
+	requestNewDocument() {
+		if (this.requestDestructiveAction('new')) return;
+		this.newDocument();
+	}
+
+	requestOpenDocument() {
+		if (this.requestDestructiveAction('open')) return;
+		void this.openDocument();
+	}
+
+	requestQuitApplication() {
+		if (this.requestDestructiveAction('quit')) return;
+		void this.quitApplication();
+	}
+
 	newDocument() {
-		if (!this.confirmDiscardChanges()) return;
 		this.applyDocument(createBlankDocument(), '', false);
 	}
 
 	async openDocument() {
-		if (!this.confirmDiscardChanges()) return;
 		try {
 			const result = await runAppEffect(openDocument());
 			if (!result) return;
@@ -473,17 +511,16 @@ export class EditorState {
 	}
 
 	async quitApplication() {
-		if (!this.confirmDiscardChanges()) return;
 		await runAppEffect(quitApplication());
 	}
 
 	async handleMenuCommand(command: MenuCommand) {
 		if (command === 'new') {
-			this.newDocument();
+			this.requestNewDocument();
 			return;
 		}
 		if (command === 'open') {
-			await this.openDocument();
+			this.requestOpenDocument();
 			return;
 		}
 		if (command === 'save') {
@@ -494,7 +531,7 @@ export class EditorState {
 			await this.saveDocument(true);
 			return;
 		}
-		await this.quitApplication();
+		this.requestQuitApplication();
 	}
 
 	subscribeMenuCommands() {

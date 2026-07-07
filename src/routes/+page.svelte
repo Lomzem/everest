@@ -3,6 +3,7 @@
 	import AppHotkeys from '$lib/components/app/AppHotkeys.svelte';
 	import AppMenubar from '$lib/components/app/AppMenubar.svelte';
 	import EditorShell from '$lib/components/app/EditorShell.svelte';
+	import UnsavedChangesDialog from '$lib/components/app/UnsavedChangesDialog.svelte';
 	import WelcomeScreen from '$lib/components/app/WelcomeScreen.svelte';
 	import '$lib/desktop-api';
 	import { editor } from '$lib/state/editor.svelte';
@@ -43,3 +44,5 @@
 		<EditorShell />
 	{/if}
 </div>
+
+<UnsavedChangesDialog />

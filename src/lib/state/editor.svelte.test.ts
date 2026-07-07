@@ -285,6 +285,55 @@ describe('EditorState derived names', () => {
 		expect(state.canRedo).toBe(false);
 	});
 
+	it('requests confirmation before replacing a dirty document', async () => {
+		const state = new EditorState();
+		state.newDocument();
+		await state.addRegister('');
+		const currentDocument = state.document;
+
+		state.requestNewDocument();
+
+		expect(state.pendingDestructiveAction).toBe('new');
+		expect(state.document).toBe(currentDocument);
+	});
+
+	it('cancels a pending destructive action without changing the document', async () => {
+		const state = new EditorState();
+		state.newDocument();
+		await state.addRegister('');
+		const currentDocument = state.document;
+
+		state.requestNewDocument();
+		state.cancelPendingDestructiveAction();
+
+		expect(state.pendingDestructiveAction).toBeUndefined();
+		expect(state.document).toBe(currentDocument);
+	});
+
+	it('confirms a pending new document action', async () => {
+		const state = new EditorState();
+		state.newDocument();
+		await state.addRegister('');
+
+		state.requestNewDocument();
+		await state.confirmPendingDestructiveAction();
+
+		expect(state.pendingDestructiveAction).toBeUndefined();
+		expect(state.dirty).toBe(false);
+		expect(state.document.registers).toHaveLength(0);
+	});
+
+	it('runs a clean new document action without pending confirmation', () => {
+		const state = new EditorState();
+		state.applyDocument(enumResetDocument(), '/tmp/top.rdl', false);
+
+		state.requestNewDocument();
+
+		expect(state.pendingDestructiveAction).toBeUndefined();
+		expect(state.currentPath).toBe('');
+		expect(state.dirty).toBe(false);
+	});
+
 	it('groups typed edits into one undo step', async () => {
 		let now = 1;
 		vi.spyOn(Date, 'now').mockImplementation(() => now++);

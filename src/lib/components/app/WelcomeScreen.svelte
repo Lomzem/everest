@@ -8,11 +8,11 @@
 	<section class="flex flex-col items-center gap-6">
 		<h1 class="text-3xl font-semibold tracking-normal">Everest</h1>
 		<div class="flex items-center gap-3">
-			<Button variant="outline" size="lg" onclick={() => editor.openDocument()}>
+			<Button variant="outline" size="lg" onclick={() => editor.requestOpenDocument()}>
 				<FolderOpen size={14} />
 				Open RDL
 			</Button>
-			<Button size="lg" onclick={() => editor.newDocument()}>
+			<Button size="lg" onclick={() => editor.requestNewDocument()}>
 				<FilePlus size={14} />
 				New RDL
 			</Button>

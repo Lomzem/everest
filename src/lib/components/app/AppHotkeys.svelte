@@ -5,14 +5,14 @@
 	createHotkeys(() => [
 		{
 			hotkey: 'Mod+N',
-			callback: () => editor.newDocument(),
+			callback: () => editor.requestNewDocument(),
 			options: {
 				preventDefault: true,
 			},
 		},
 		{
 			hotkey: 'Mod+O',
-			callback: () => editor.openDocument(),
+			callback: () => editor.requestOpenDocument(),
 			options: {
 				preventDefault: true,
 			},
@@ -35,7 +35,7 @@
 		},
 		{
 			hotkey: 'Mod+Q',
-			callback: () => editor.quitApplication(),
+			callback: () => editor.requestQuitApplication(),
 			options: {
 				preventDefault: true,
 			},

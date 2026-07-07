@@ -8,11 +8,11 @@
 		<Menubar.Menu>
 			<Menubar.Trigger class="text-base">File</Menubar.Trigger>
 			<Menubar.Content align="start" class="min-w-52">
-				<Menubar.Item class="text-base" onclick={() => editor.newDocument()}>
+				<Menubar.Item class="text-base" onclick={() => editor.requestNewDocument()}>
 					New RDL
 					<Menubar.Shortcut class="text-base tracking-normal">Mod+N</Menubar.Shortcut>
 				</Menubar.Item>
-				<Menubar.Item class="text-base" onclick={() => editor.openDocument()}>
+				<Menubar.Item class="text-base" onclick={() => editor.requestOpenDocument()}>
 					Open RDL...
 					<Menubar.Shortcut class="text-base tracking-normal">Mod+O</Menubar.Shortcut>
 				</Menubar.Item>
@@ -34,7 +34,7 @@
 					<Menubar.Shortcut class="text-base tracking-normal">Mod+Shift+S</Menubar.Shortcut>
 				</Menubar.Item>
 				<Menubar.Separator />
-				<Menubar.Item class="text-base" onclick={() => editor.quitApplication()}>
+				<Menubar.Item class="text-base" onclick={() => editor.requestQuitApplication()}>
 					Quit
 					<Menubar.Shortcut class="text-base tracking-normal">Mod+Q</Menubar.Shortcut>
 				</Menubar.Item>
