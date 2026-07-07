@@ -10,11 +10,11 @@
 			<Menubar.Content align="start" class="min-w-52">
 				<Menubar.Item class="text-base" onclick={() => editor.requestNewDocument()}>
 					New RDL
-					<Menubar.Shortcut class="text-base tracking-normal">Mod+N</Menubar.Shortcut>
+					<Menubar.Shortcut class="text-base tracking-normal">Ctrl+N</Menubar.Shortcut>
 				</Menubar.Item>
 				<Menubar.Item class="text-base" onclick={() => editor.requestOpenDocument()}>
 					Open RDL...
-					<Menubar.Shortcut class="text-base tracking-normal">Mod+O</Menubar.Shortcut>
+					<Menubar.Shortcut class="text-base tracking-normal">Ctrl+O</Menubar.Shortcut>
 				</Menubar.Item>
 				<Menubar.Separator />
 				<Menubar.Item
@@ -23,7 +23,7 @@
 					onclick={() => editor.saveDocument(false)}
 				>
 					Save
-					<Menubar.Shortcut class="text-base tracking-normal">Mod+S</Menubar.Shortcut>
+					<Menubar.Shortcut class="text-base tracking-normal">Ctrl+S</Menubar.Shortcut>
 				</Menubar.Item>
 				<Menubar.Item
 					class="text-base"
@@ -31,12 +31,12 @@
 					onclick={() => editor.saveDocument(true)}
 				>
 					Save As...
-					<Menubar.Shortcut class="text-base tracking-normal">Mod+Shift+S</Menubar.Shortcut>
+					<Menubar.Shortcut class="text-base tracking-normal">Ctrl+Shift+S</Menubar.Shortcut>
 				</Menubar.Item>
 				<Menubar.Separator />
 				<Menubar.Item class="text-base" onclick={() => editor.requestQuitApplication()}>
 					Quit
-					<Menubar.Shortcut class="text-base tracking-normal">Mod+Q</Menubar.Shortcut>
+					<Menubar.Shortcut class="text-base tracking-normal">Ctrl+Q</Menubar.Shortcut>
 				</Menubar.Item>
 			</Menubar.Content>
 		</Menubar.Menu>
@@ -46,11 +46,11 @@
 			<Menubar.Content align="start" class="min-w-44">
 				<Menubar.Item class="text-base" disabled={!editor.canUndo} onclick={() => editor.undo()}>
 					Undo
-					<Menubar.Shortcut class="text-base tracking-normal">Mod+Z</Menubar.Shortcut>
+					<Menubar.Shortcut class="text-base tracking-normal">Ctrl+Z</Menubar.Shortcut>
 				</Menubar.Item>
 				<Menubar.Item class="text-base" disabled={!editor.canRedo} onclick={() => editor.redo()}>
 					Redo
-					<Menubar.Shortcut class="text-base tracking-normal">Mod+Y</Menubar.Shortcut>
+					<Menubar.Shortcut class="text-base tracking-normal">Ctrl+Y</Menubar.Shortcut>
 				</Menubar.Item>
 			</Menubar.Content>
 		</Menubar.Menu>
