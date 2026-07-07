@@ -10,6 +10,11 @@ export function identifierErrors(value: string | undefined, label: string) {
 	return [`${label} can only contain letters, numbers, and underscores.`];
 }
 
+export function bitRangeErrors(field: Field) {
+	if (field.msb >= field.lsb) return [];
+	return ['MSB must be greater than or equal to LSB.'];
+}
+
 export function enumValueErrors(field: Field, enumValue: EnumValue, valueMode: ValueMode) {
 	const width = fieldBitWidth(field);
 	const maxValue = maxValueForWidth(width);

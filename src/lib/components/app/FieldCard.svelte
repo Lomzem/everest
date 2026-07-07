@@ -2,7 +2,7 @@
 	import { Check, ChevronDown, ChevronRight, Trash2 } from '@lucide/svelte';
 	import type { Access, Field } from '$lib/rdl/model';
 	import { fieldBitWidth, formatValue, valuePrefix } from '$lib/rdl/format';
-	import { resetErrors } from '$lib/rdl/validation';
+	import { bitRangeErrors, resetErrors } from '$lib/rdl/validation';
 	import { accessOptions, editor, numberInput, textInput } from '$lib/state/editor.svelte';
 	import { ui } from '$lib/state/ui.svelte';
 	import * as Command from '$lib/components/ui/command';
@@ -24,6 +24,7 @@
 	);
 	const resetValidationErrors = $derived(resetErrors(field, ui.valueMode));
 	const resetNumericText = $derived(formatValue(field.reset, ui.valueMode, fieldBitWidth(field)));
+	const bitRangeValidationErrors = $derived(bitRangeErrors(field));
 	const errorClass = (errors: string[]) =>
 		errors.length
 			? 'border-destructive/50 focus:border-destructive'
@@ -48,7 +49,12 @@
 				{:else}
 					<ChevronRight size={14} class="text-muted-foreground" />
 				{/if}
-				<span class="font-mono text-primary">[{field.msb}:{field.lsb}]</span>
+				<span
+					class={`font-mono ${bitRangeValidationErrors.length ? 'text-destructive' : 'text-primary'}`}
+					title={bitRangeValidationErrors.join(' ')}
+				>
+					[{field.msb}:{field.lsb}]
+				</span>
 				<span class="min-w-0">
 					<span class="block truncate font-semibold">{field.title}</span>
 					<span class="block truncate font-mono text-base text-muted-foreground">{field.name}</span>
@@ -123,31 +129,65 @@
 					</label>
 					<label class="space-y-1">
 						<span class="text-base font-medium text-muted-foreground">MSB</span>
-						<input
-							class="h-9 w-full rounded-md border border-input bg-background px-2 font-mono text-base outline-none focus:border-primary"
-							type="number"
-							min="0"
-							max={editor.selectedRegister.width - 1}
-							value={field.msb}
-							disabled={!editor.canEditField(field.id, 'bitRange')}
-							onfocus={() => editor.beginGroupedDocumentEdit()}
-							oninput={(event) => editor.updateField(field.id, { msb: numberInput(event) })}
-							onblur={() => editor.endGroupedDocumentEdit()}
-						/>
+						<span class="group/error relative block">
+							<input
+								class={`h-9 w-full rounded-md border bg-background px-2 pr-6 font-mono text-base outline-none ${errorClass(
+									bitRangeValidationErrors,
+								)}`}
+								type="number"
+								min="0"
+								max={editor.selectedRegister.width - 1}
+								value={field.msb}
+								disabled={!editor.canEditField(field.id, 'bitRange')}
+								title={bitRangeValidationErrors.join(' ')}
+								onfocus={() => editor.beginGroupedDocumentEdit()}
+								oninput={(event) => editor.updateField(field.id, { msb: numberInput(event) })}
+								onblur={() => editor.endGroupedDocumentEdit()}
+							/>
+							{#if bitRangeValidationErrors.length}
+								<span
+									class="pointer-events-none absolute right-1 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full bg-destructive/10 text-base font-semibold text-destructive"
+								>
+									!
+								</span>
+								<span
+									class="pointer-events-none absolute bottom-full left-0 z-20 mb-2 hidden w-max max-w-sm rounded-md border border-destructive/30 bg-popover px-2 py-1 text-base leading-5 text-destructive shadow-lg group-hover/error:block group-focus-within/error:block"
+								>
+									{bitRangeValidationErrors.join(' ')}
+								</span>
+							{/if}
+						</span>
 					</label>
 					<label class="space-y-1">
 						<span class="text-base font-medium text-muted-foreground">LSB</span>
-						<input
-							class="h-9 w-full rounded-md border border-input bg-background px-2 font-mono text-base outline-none focus:border-primary"
-							type="number"
-							min="0"
-							max={editor.selectedRegister.width - 1}
-							value={field.lsb}
-							disabled={!editor.canEditField(field.id, 'bitRange')}
-							onfocus={() => editor.beginGroupedDocumentEdit()}
-							oninput={(event) => editor.updateField(field.id, { lsb: numberInput(event) })}
-							onblur={() => editor.endGroupedDocumentEdit()}
-						/>
+						<span class="group/error relative block">
+							<input
+								class={`h-9 w-full rounded-md border bg-background px-2 pr-6 font-mono text-base outline-none ${errorClass(
+									bitRangeValidationErrors,
+								)}`}
+								type="number"
+								min="0"
+								max={editor.selectedRegister.width - 1}
+								value={field.lsb}
+								disabled={!editor.canEditField(field.id, 'bitRange')}
+								title={bitRangeValidationErrors.join(' ')}
+								onfocus={() => editor.beginGroupedDocumentEdit()}
+								oninput={(event) => editor.updateField(field.id, { lsb: numberInput(event) })}
+								onblur={() => editor.endGroupedDocumentEdit()}
+							/>
+							{#if bitRangeValidationErrors.length}
+								<span
+									class="pointer-events-none absolute right-1 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full bg-destructive/10 text-base font-semibold text-destructive"
+								>
+									!
+								</span>
+								<span
+									class="pointer-events-none absolute bottom-full left-0 z-20 mb-2 hidden w-max max-w-sm rounded-md border border-destructive/30 bg-popover px-2 py-1 text-base leading-5 text-destructive shadow-lg group-hover/error:block group-focus-within/error:block"
+								>
+									{bitRangeValidationErrors.join(' ')}
+								</span>
+							{/if}
+						</span>
 					</label>
 					<div class="min-w-0 space-y-1">
 						<span class="text-base font-medium text-muted-foreground">Reset</span>

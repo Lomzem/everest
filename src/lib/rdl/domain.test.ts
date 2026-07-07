@@ -15,7 +15,7 @@ import {
 import { buildFolderChildren, normalizeHierarchyGroups } from './hierarchy';
 import { createBlankDocument, createDefaultField, type Field, type Register } from './model';
 import { decodeRdlDocument } from './schema';
-import { enumValueErrors, identifierErrors, resetErrors } from './validation';
+import { bitRangeErrors, enumValueErrors, identifierErrors, resetErrors } from './validation';
 
 const createTestRegister = (overrides: Partial<Register> = {}): Register => ({
 	id: 'test-register',
@@ -136,6 +136,14 @@ describe('RDL domain helpers', () => {
 
 		expect(resetErrors(field, 'hex')).toEqual(['Reset does not match an enum encoding.']);
 		expect(resetErrors({ ...field, reset: 1, resetEnumValueId: 'on' }, 'hex')).toEqual([]);
+	});
+
+	it('reports bit ranges where MSB is less than LSB', () => {
+		expect(bitRangeErrors({ ...createDefaultField(), msb: 3, lsb: 0 })).toEqual([]);
+		expect(bitRangeErrors({ ...createDefaultField(), msb: 2, lsb: 2 })).toEqual([]);
+		expect(bitRangeErrors({ ...createDefaultField(), msb: 1, lsb: 4 })).toEqual([
+			'MSB must be greater than or equal to LSB.',
+		]);
 	});
 
 	it('reports invalid identifiers', () => {
