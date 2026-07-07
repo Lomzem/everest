@@ -156,21 +156,24 @@
 								<Popover.Root bind:open={resetPopoverOpen}>
 									<span class="group/error relative block min-w-0">
 										<Popover.Trigger class="block w-full">
-											<button
-												class={`flex h-9 w-full items-center gap-2 rounded-md border bg-background px-2 text-left text-base outline-none focus:border-primary ${errorClass(
-													resetValidationErrors,
-												)}`}
-												disabled={!editor.canEditField(field.id, 'reset')}
-												title={resetValidationErrors.join(' ') || 'Choose reset value'}
-											>
-												<span class="min-w-0 flex-1 truncate font-semibold">
-													{resetEnumValue?.name ?? 'Invalid reset'}
-												</span>
-												<span class="shrink-0 font-mono text-base text-muted-foreground">
-													{resetNumericText}
-												</span>
-												<ChevronDown size={14} class="shrink-0 text-muted-foreground" />
-											</button>
+											{#snippet child({ props })}
+												<button
+													{...props}
+													class={`flex h-9 w-full items-center gap-2 rounded-md border bg-background px-2 text-left text-base outline-none focus:border-primary ${errorClass(
+														resetValidationErrors,
+													)}`}
+													disabled={!editor.canEditField(field.id, 'reset')}
+													title={resetValidationErrors.join(' ') || 'Choose reset value'}
+												>
+													<span class="min-w-0 flex-1 truncate font-semibold">
+														{resetEnumValue?.name ?? 'Invalid reset'}
+													</span>
+													<span class="shrink-0 font-mono text-base text-muted-foreground">
+														{resetNumericText}
+													</span>
+													<ChevronDown size={14} class="shrink-0 text-muted-foreground" />
+												</button>
+											{/snippet}
 										</Popover.Trigger>
 										{#if resetValidationErrors.length}
 											<span
