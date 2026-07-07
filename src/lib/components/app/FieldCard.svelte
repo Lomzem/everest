@@ -64,19 +64,32 @@
 				</span>
 			</button>
 			<span class="grid grid-cols-[176px_86px_86px] items-center gap-2 text-base">
-				<button
-					class={`whitespace-nowrap rounded-md border bg-background px-2 py-1 text-center text-muted-foreground ${
-						resetValidationErrors.length
-							? 'border-destructive/50 text-destructive'
-							: 'border-border'
-					}`}
-					title={resetValidationErrors.join(' ') || 'Toggle reset display'}
-					onclick={() => {
-						headerResetMode = headerResetMode === 'enum' ? 'numeric' : 'enum';
-					}}
-				>
-					Reset: <span class="font-mono">{resetHeaderText}</span>
-				</button>
+				{#if field.values.length}
+					<button
+						class={`select-text whitespace-nowrap rounded-md border bg-background px-2 py-1 text-center text-muted-foreground transition-colors hover:border-primary/50 hover:bg-muted hover:text-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 ${
+							resetValidationErrors.length
+								? 'border-destructive/50 text-destructive'
+								: 'border-border'
+						}`}
+						title={resetValidationErrors.join(' ') || 'Toggle reset display'}
+						onclick={() => {
+							headerResetMode = headerResetMode === 'enum' ? 'numeric' : 'enum';
+						}}
+					>
+						Reset: <span class="font-mono">{resetHeaderText}</span>
+					</button>
+				{:else}
+					<span
+						class={`select-text whitespace-nowrap rounded-md border bg-background px-2 py-1 text-center text-muted-foreground ${
+							resetValidationErrors.length
+								? 'border-destructive/50 text-destructive'
+								: 'border-border'
+						}`}
+						title={resetValidationErrors.join(' ')}
+					>
+						Reset: <span class="font-mono">{resetHeaderText}</span>
+					</span>
+				{/if}
 				<span
 					class="whitespace-nowrap rounded-md border border-chart-2/30 bg-chart-2/10 px-2 py-1 text-center font-medium text-chart-2"
 				>
