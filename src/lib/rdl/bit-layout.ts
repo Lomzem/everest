@@ -24,7 +24,7 @@ export function buildBitSegments(register: Register): BitSegment[] {
 		if (cursor > high) {
 			segments.push({
 				key: `reserved-${cursor}-${high + 1}`,
-				label: `RSVD [${cursor}:${high + 1}]`,
+				label: `Reserved [${cursor}:${high + 1}]`,
 				span: cursor - high,
 				classes: 'border-border bg-muted/50 text-muted-foreground',
 			});
@@ -42,7 +42,7 @@ export function buildBitSegments(register: Register): BitSegment[] {
 	if (cursor >= 0) {
 		segments.push({
 			key: `reserved-${cursor}-0`,
-			label: cursor === 0 ? 'RSVD [0]' : `RSVD [${cursor}:0]`,
+			label: cursor === 0 ? 'Reserved [0]' : `Reserved [${cursor}:0]`,
 			span: cursor + 1,
 			classes: 'border-border bg-muted/50 text-muted-foreground',
 		});

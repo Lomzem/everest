@@ -102,7 +102,7 @@ describe('RDL domain helpers', () => {
 
 		expect(buildBitSegments(register).map((segment) => segment.label)).toEqual([
 			'Upper [7:4]',
-			'RSVD [3:3]',
+			'Reserved [3:3]',
 			'Flag [2]',
 			'Lower [1:0]',
 		]);
