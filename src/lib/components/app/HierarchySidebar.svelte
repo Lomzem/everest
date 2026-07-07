@@ -123,7 +123,7 @@
 						{#if rootExpanded}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}
 					</button>
 					<button
-						class="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1.5 text-left font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+						class="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1.5 text-left font-medium text-sidebar-foreground hover:text-sidebar-accent-foreground"
 						onclick={() => editor.selectGroup('')}
 						title={editor.addrmapLabel}
 					>

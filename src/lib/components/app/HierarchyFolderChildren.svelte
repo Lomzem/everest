@@ -6,7 +6,7 @@
 	let { groupPath }: { groupPath: string } = $props();
 </script>
 
-<div class="ml-4 border-l border-sidebar-border pl-2">
+<div class="ml-4 flex flex-col gap-1 border-l border-sidebar-border pl-2">
 	{#each editor.folderChildren(groupPath) as child (child.kind === 'folder' ? child.id : child.register.id)}
 		{#if child.kind === 'folder'}
 			{@const group = editor.hierarchyGroupForPath(child.path)}
