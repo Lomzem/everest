@@ -55,9 +55,13 @@ export function formatEditableValue(value: number, mode: ValueMode, width = 4) {
 export function formatBinaryValue(value: number, width = 4) {
 	const bits = Math.max(0, value).toString(2);
 	const minimumBits = Math.max(width, bits.length);
-	const groupedWidth = Math.ceil(minimumBits / 4) * 4;
-	const padded = bits.padStart(groupedWidth, '0');
-	return padded.match(/.{1,4}/g)?.join(' ') ?? padded;
+	const padded = bits.padStart(minimumBits, '0');
+	const firstGroupWidth = padded.length % 4 || 4;
+	const groups = [padded.slice(0, firstGroupWidth)];
+	for (let index = firstGroupWidth; index < padded.length; index += 4) {
+		groups.push(padded.slice(index, index + 4));
+	}
+	return groups.join(' ');
 }
 
 export function valuePrefix(mode: ValueMode) {

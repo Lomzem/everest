@@ -46,6 +46,7 @@ describe('RDL domain helpers', () => {
 	it('formats and parses numeric values by mode', () => {
 		expect(formatValue(10, 'hex')).toBe('0xa');
 		expect(formatEditableValue(10, 'bin', 4)).toBe('1010');
+		expect(formatEditableValue(63, 'bin', 6)).toBe('11 1111');
 		expect(parseEditableValue('0b1010', 'bin')).toBe(10);
 		expect(parseEditableValue('ff', 'hex')).toBe(255);
 		expect(parseEditableValue('', 'dec')).toBe(0);
