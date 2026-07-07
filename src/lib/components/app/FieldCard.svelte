@@ -96,7 +96,7 @@
 		<div class="border-t border-border bg-muted/50 px-8 py-5">
 			<div class="space-y-4">
 				<div
-					class="grid grid-cols-[1fr_1fr_96px_96px_minmax(320px,2fr)_120px_120px] items-end gap-3"
+					class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_96px_96px_minmax(240px,2fr)_96px_96px] items-end gap-3"
 				>
 					<label class="space-y-1">
 						<span class="text-base font-medium text-muted-foreground">Name</span>
@@ -149,7 +149,7 @@
 							onblur={() => editor.endGroupedDocumentEdit()}
 						/>
 					</label>
-					<div class="space-y-1">
+					<div class="min-w-0 space-y-1">
 						<span class="text-base font-medium text-muted-foreground">Reset</span>
 						{#key ui.valueMode}
 							{#if field.values.length}
@@ -263,7 +263,7 @@
 							{/if}
 						{/key}
 					</div>
-					<div class="space-y-1">
+					<div class="min-w-0 space-y-1">
 						<span class="text-base font-medium text-muted-foreground">SW</span>
 						<Select.Root
 							type="single"
@@ -272,7 +272,7 @@
 							onValueChange={(sw: string) => editor.updateField(field.id, { sw: sw as Access })}
 						>
 							<Select.Trigger
-								class="h-9 w-full bg-background text-base focus-visible:border-primary focus-visible:ring-0"
+								class="h-9! w-full min-w-0 bg-background text-base focus-visible:border-primary focus-visible:ring-0"
 							>
 								{field.sw}
 							</Select.Trigger>
@@ -283,7 +283,7 @@
 							</Select.Content>
 						</Select.Root>
 					</div>
-					<div class="space-y-1">
+					<div class="min-w-0 space-y-1">
 						<span class="text-base font-medium text-muted-foreground">HW</span>
 						<Select.Root
 							type="single"
@@ -292,7 +292,7 @@
 							onValueChange={(hw: string) => editor.updateField(field.id, { hw: hw as Access })}
 						>
 							<Select.Trigger
-								class="h-9 w-full bg-background text-base focus-visible:border-primary focus-visible:ring-0"
+								class="h-9! w-full min-w-0 bg-background text-base focus-visible:border-primary focus-visible:ring-0"
 							>
 								{field.hw}
 							</Select.Trigger>
