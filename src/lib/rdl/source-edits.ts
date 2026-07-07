@@ -155,6 +155,7 @@ function canInsertMissingFieldSourceProp(
 	fieldRanges: FieldSourceEditRanges,
 	prop: EditableFieldProp,
 ) {
+	if (prop === 'sw' || prop === 'hw') return fieldRanges.bodyEnd !== undefined;
 	if (prop === 'enumName') return fieldRanges.bodyEnd !== undefined;
 	return false;
 }
@@ -487,6 +488,18 @@ function structuralSourceReplacements(
 				});
 			}
 
+			const accessLines = missingFieldAccessLines(fieldRanges, register, field);
+			if (accessLines.length && fieldRanges.bodyEnd !== undefined) {
+				replacements.push(
+					fieldBodyInsertion(
+						sourceText,
+						fieldRanges.bodyEnd,
+						fieldRanges.bodyIndent ?? '\t\t\t',
+						accessLines,
+					),
+				);
+			}
+
 			if (!rewrittenEnumRange && fieldRanges.enumBodyEnd) {
 				const newValues = field.values.filter((value) => !fieldRanges.values[value.id]);
 				if (newValues.length) {
@@ -504,6 +517,38 @@ function structuralSourceReplacements(
 	}
 
 	return replacements;
+}
+
+function missingFieldAccessLines(
+	fieldRanges: FieldSourceEditRanges,
+	register: Register,
+	field: Field,
+) {
+	const lines: string[] = [];
+	if (!fieldRanges.sw && field.sw !== register.sw) lines.push(`sw = ${rdlAccess(field.sw)};`);
+	if (!fieldRanges.hw && field.hw !== register.hw) lines.push(`hw = ${rdlAccess(field.hw)};`);
+	return lines;
+}
+
+function fieldBodyInsertion(
+	sourceText: string,
+	bodyEnd: number,
+	indent: string,
+	lines: string[],
+): Replacement {
+	const closeLineStart = lineStart(sourceText, bodyEnd);
+	const closeIndent = sourceText.slice(closeLineStart, bodyEnd);
+	const text = lines.map((line) => `${indent}${line}`).join('\n');
+	if (closeIndent.trim() === '') {
+		return {
+			range: { start: closeLineStart, end: bodyEnd },
+			text: `${text}\n${closeIndent}`,
+		};
+	}
+	return {
+		range: { start: bodyEnd, end: bodyEnd },
+		text: `\n${text}`,
+	};
 }
 
 function enumOrderChanged(sourceIds: string[], currentIds: string[]) {

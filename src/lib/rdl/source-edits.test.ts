@@ -218,6 +218,36 @@ describe('source-safe edit ranges', () => {
 		expect(content).toContain('OFF = 0 {desc = "Off";};');
 	});
 
+	it('inserts explicit field access properties when editing inherited defaults', () => {
+		const inheritedSource = sourceText
+			.replace('\t\t\tsw = rw;\n', '')
+			.replace('\t\t\thw = r;\n', '');
+		const document = prepareSourceBackedDocument({
+			...sourceDocument(),
+			source: { ...sourceDocument().source!, text: inheritedSource },
+		});
+		const register = document.registers[0];
+		const field = register.fields[0];
+		const edited: RdlDocument = {
+			...document,
+			registers: [
+				{
+					...register,
+					fields: [{ ...field, sw: 'W', hw: 'RW' }],
+				},
+			],
+		};
+
+		const content = sourceContentFor(edited);
+
+		expect(sourceContentFor(document)).toBe(inheritedSource);
+		expect(canEditFieldSourceProp(document, 'control', 'control-mode', 'sw')).toBe(true);
+		expect(canEditFieldSourceProp(document, 'control', 'control-mode', 'hw')).toBe(true);
+		expect(content).toContain('\t\tdefault sw = rw;');
+		expect(content).toContain('\t\tdefault hw = r;');
+		expect(content).toContain('\t\t\tsw = w;\n\t\t\thw = rw;\n\t\t} mode[1:0];');
+	});
+
 	it('adds the first enum encoding to an existing source-backed field', () => {
 		const base = sourceDocument();
 		const register = base.registers[0];
