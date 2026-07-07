@@ -1,9 +1,25 @@
 <script lang="ts">
 	import { accessOptions, editor, textInput } from '$lib/state/editor.svelte';
 	import type { Access } from '$lib/rdl/model';
-	import { formatEditableAddress, parseAddress } from '$lib/rdl/format';
+	import {
+		addressInputPattern,
+		formatEditableAddress,
+		isValidAddressInput,
+		parseAddress,
+	} from '$lib/rdl/format';
 	import * as Select from '$lib/components/ui/select';
 	import EditorBreadcrumbs from './EditorBreadcrumbs.svelte';
+
+	function updateAddressInput(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const value = textInput(event);
+		if (!isValidAddressInput(value)) {
+			input.value = formatEditableAddress(editor.selectedRegister.address);
+			return;
+		}
+
+		editor.updateSelectedRegister({ address: parseAddress(value) });
+	}
 </script>
 
 <div class="border-b border-border px-8 py-6" data-register-editor>
@@ -27,11 +43,13 @@
 						</span>
 						<input
 							class="w-20 px-2 font-mono text-base outline-none"
+							type="text"
+							spellcheck="false"
+							pattern={addressInputPattern}
 							value={formatEditableAddress(editor.selectedRegister.address)}
 							disabled={!editor.canEditSelectedRegister('address')}
 							onfocus={() => editor.beginGroupedDocumentEdit()}
-							oninput={(event) =>
-								editor.updateSelectedRegister({ address: parseAddress(textInput(event)) })}
+							oninput={updateAddressInput}
 							onblur={() => editor.endGroupedDocumentEdit()}
 						/>
 					</span>

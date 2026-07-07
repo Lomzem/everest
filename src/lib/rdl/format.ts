@@ -1,5 +1,21 @@
 import type { Field, ValueMode } from './model';
 
+export const addressInputPattern = '[0-9a-fA-F]*';
+
+const valueInputPatterns: Record<ValueMode, string> = {
+	hex: '[0-9a-fA-F]*',
+	dec: '[0-9]*',
+	bin: '[01\\s_]*',
+};
+
+const addressInputRegex = /^[0-9a-fA-F]*$/;
+
+const valueInputRegexes: Record<ValueMode, RegExp> = {
+	hex: /^[0-9a-fA-F]*$/,
+	dec: /^[0-9]*$/,
+	bin: /^[01\s_]*$/,
+};
+
 export function formatAddress(address: number) {
 	return `0x${Math.max(0, address).toString(16).padStart(2, '0')}`;
 }
@@ -10,6 +26,18 @@ export function formatEditableAddress(address: number) {
 
 export function parseAddress(value: string) {
 	return parseInt(value.trim().replace(/^0x/i, ''), 16) || 0;
+}
+
+export function isValidAddressInput(value: string) {
+	return addressInputRegex.test(value);
+}
+
+export function valueInputPattern(mode: ValueMode) {
+	return valueInputPatterns[mode];
+}
+
+export function isValidEditableValueInput(value: string, mode: ValueMode) {
+	return valueInputRegexes[mode].test(value);
 }
 
 export function formatValue(value: number, mode: ValueMode, width = 4) {

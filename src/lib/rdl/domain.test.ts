@@ -2,7 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { Effect } from 'effect';
 import { buildBitSegments } from './bit-layout';
 import { exportRdlDocument } from './export';
-import { deriveIdentifier, formatEditableValue, formatValue, parseEditableValue } from './format';
+import {
+	addressInputPattern,
+	deriveIdentifier,
+	formatEditableValue,
+	formatValue,
+	isValidAddressInput,
+	isValidEditableValueInput,
+	parseEditableValue,
+	valueInputPattern,
+} from './format';
 import { buildFolderChildren, normalizeHierarchyGroups } from './hierarchy';
 import { createBlankDocument, createDefaultField, type Field, type Register } from './model';
 import { decodeRdlDocument } from './schema';
@@ -29,6 +38,24 @@ describe('RDL domain helpers', () => {
 		expect(parseEditableValue('0b1010', 'bin')).toBe(10);
 		expect(parseEditableValue('ff', 'hex')).toBe(255);
 		expect(parseEditableValue('', 'dec')).toBe(0);
+	});
+
+	it('validates numeric input text by address and value mode', () => {
+		expect(addressInputPattern).toBe('[0-9a-fA-F]*');
+		expect(valueInputPattern('hex')).toBe('[0-9a-fA-F]*');
+		expect(valueInputPattern('dec')).toBe('[0-9]*');
+		expect(valueInputPattern('bin')).toBe('[01\\s_]*');
+
+		expect(isValidAddressInput('0aF')).toBe(true);
+		expect(isValidAddressInput('0x0')).toBe(false);
+		expect(isValidAddressInput('19g')).toBe(false);
+
+		expect(isValidEditableValueInput('123', 'dec')).toBe(true);
+		expect(isValidEditableValueInput('12a', 'dec')).toBe(false);
+		expect(isValidEditableValueInput('deadBEEF', 'hex')).toBe(true);
+		expect(isValidEditableValueInput('0x12', 'hex')).toBe(false);
+		expect(isValidEditableValueInput('1010 0011_0000', 'bin')).toBe(true);
+		expect(isValidEditableValueInput('102', 'bin')).toBe(false);
 	});
 
 	it('derives RDL identifiers from display names', () => {

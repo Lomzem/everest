@@ -2,7 +2,12 @@
 	import { Braces, Plus, Trash2 } from '@lucide/svelte';
 	import type { Field } from '$lib/rdl/model';
 	import { enumValueErrors, identifierErrors } from '$lib/rdl/validation';
-	import { fieldBitWidth, valuePrefix } from '$lib/rdl/format';
+	import {
+		fieldBitWidth,
+		isValidEditableValueInput,
+		valueInputPattern,
+		valuePrefix,
+	} from '$lib/rdl/format';
 	import { editor, textInput } from '$lib/state/editor.svelte';
 	import { ui } from '$lib/state/ui.svelte';
 
@@ -18,6 +23,21 @@
 		globalThis.document
 			.querySelector<HTMLElement>(`[data-enum-editor="${CSS.escape(field.id)}"]`)
 			?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+	}
+
+	function updateEnumNumericInput(event: Event, valueId: string, value: number) {
+		const input = event.currentTarget as HTMLInputElement;
+		const rawValue = textInput(event);
+		if (!isValidEditableValueInput(rawValue, ui.valueMode)) {
+			input.value = ui.numericInputValue(
+				`enum:${field.id}:${valueId}`,
+				value,
+				fieldBitWidth(field),
+			);
+			return;
+		}
+
+		editor.updateEnumNumericValue(field.id, valueId, rawValue);
 	}
 </script>
 
@@ -116,7 +136,10 @@
 								<input
 									class="min-w-0 flex-1 py-0 pl-2 pr-6 font-mono text-base text-muted-foreground outline-none"
 									data-enum-value-input={`${field.id}:${value.id}`}
-									inputmode={ui.valueMode === 'dec' ? 'numeric' : 'text'}
+									type="text"
+									spellcheck="false"
+									inputmode={ui.valueMode === 'hex' ? 'text' : 'numeric'}
+									pattern={valueInputPattern(ui.valueMode)}
 									disabled={!editor.canEditEnumValue(field.id, value.id, 'value')}
 									value={ui.numericInputValue(
 										`enum:${field.id}:${value.id}`,
@@ -124,8 +147,7 @@
 										fieldBitWidth(field),
 									)}
 									onfocus={() => editor.beginGroupedDocumentEdit()}
-									oninput={(event) =>
-										editor.updateEnumNumericValue(field.id, value.id, textInput(event))}
+									oninput={(event) => updateEnumNumericInput(event, value.id, value.value)}
 									onblur={() => {
 										void editor
 											.commitEnumNumericValue(field.id, value.id)
