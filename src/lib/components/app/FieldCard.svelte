@@ -75,10 +75,7 @@
 						headerResetMode = headerResetMode === 'enum' ? 'numeric' : 'enum';
 					}}
 				>
-					Reset: <span
-						class={resetEnumValue && headerResetMode === 'enum' ? 'font-semibold' : 'font-mono'}
-						>{resetHeaderText}</span
-					>
+					Reset: <span class="font-mono">{resetHeaderText}</span>
 				</button>
 				<span
 					class="whitespace-nowrap rounded-md border border-chart-2/30 bg-chart-2/10 px-2 py-1 text-center font-medium text-chart-2"
