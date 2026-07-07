@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Cpu, FolderPlus, FolderTree, Plus } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
+	import * as Empty from '$lib/components/ui/empty';
 	import { formatAddress } from '$lib/rdl/format';
 	import { rootBlockId } from '$lib/rdl/hierarchy';
 	import { editor, textInput } from '$lib/state/editor.svelte';
@@ -146,7 +147,13 @@
 					{/if}
 				{/each}
 			{:else}
-				<div class="flex min-h-36 flex-col items-center justify-center gap-3 px-6 py-8 text-center">
+				<Empty.Root class="min-h-48 rounded-none border-0">
+					<Empty.Content>
+						<Empty.Title class="text-base">No registers yet</Empty.Title>
+						<Empty.Description class="text-base">
+							Add a register to define this addrmap.
+						</Empty.Description>
+					</Empty.Content>
 					<div class="flex items-center gap-2">
 						<Button
 							variant="outline"
@@ -169,7 +176,7 @@
 							Add Register
 						</Button>
 					</div>
-				</div>
+				</Empty.Root>
 			{/if}
 		</div>
 	</section>
