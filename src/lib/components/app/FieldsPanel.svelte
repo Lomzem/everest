@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Plus } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
+	import * as Empty from '$lib/components/ui/empty';
 	import type { ValueMode } from '$lib/rdl/model';
 	import { editor } from '$lib/state/editor.svelte';
 	import { ui } from '$lib/state/ui.svelte';
@@ -64,8 +65,19 @@
 	</div>
 
 	<div class="space-y-3">
-		{#each editor.selectedRegister.fields as field (field.id)}
-			<FieldCard {field} />
-		{/each}
+		{#if editor.selectedRegister.fields.length}
+			{#each editor.selectedRegister.fields as field (field.id)}
+				<FieldCard {field} />
+			{/each}
+		{:else}
+			<Empty.Root class="min-h-48 rounded-md border border-border">
+				<Empty.Content>
+					<Empty.Title class="text-base">No fields</Empty.Title>
+					<Empty.Description class="text-base">
+						Add a field to define this register's bit layout.
+					</Empty.Description>
+				</Empty.Content>
+			</Empty.Root>
+		{/if}
 	</div>
 </section>

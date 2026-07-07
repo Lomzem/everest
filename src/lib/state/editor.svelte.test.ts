@@ -77,6 +77,16 @@ describe('EditorState derived names', () => {
 		expect(state.document.registers.map((register) => register.address)).toEqual([0, 1]);
 	});
 
+	it('adds registers without fields', async () => {
+		const state = new EditorState();
+		state.newDocument();
+
+		await state.addRegister('');
+
+		expect(state.selectedRegister.fields).toEqual([]);
+		expect(state.selectedFieldId).toBe('');
+	});
+
 	it('derives a new field ID from the display name until manually edited', async () => {
 		const state = new EditorState();
 		state.newDocument();
@@ -159,6 +169,7 @@ describe('EditorState derived names', () => {
 		const state = new EditorState();
 		state.newDocument();
 		await state.addRegister('');
+		await state.addField();
 		const fieldId = state.selectedRegister.fields[0].id;
 		await state.addEnumValue(fieldId);
 		await state.addEnumValue(fieldId);

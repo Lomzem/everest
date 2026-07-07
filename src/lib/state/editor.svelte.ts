@@ -14,7 +14,6 @@ import {
 	accessOptions,
 	bitColors,
 	createBlankDocument,
-	createDefaultField,
 	type EnumValue,
 	type Field,
 	type HierarchyGroup,
@@ -788,7 +787,7 @@ export class EditorState {
 			group: groupPath,
 			sw: 'RW',
 			hw: 'RW',
-			fields: [createDefaultField(`field-${Date.now()}`)],
+			fields: [],
 		};
 
 		this.commitDocumentChange({ ...this.document, registers: [...this.document.registers, next] });
