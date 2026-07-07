@@ -2,7 +2,6 @@ import { tick } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { MenuCommand } from '$lib/desktop-api';
 import {
-	exportDocumentAs,
 	openDocument,
 	quitApplication,
 	saveDocument,
@@ -473,22 +472,6 @@ export class EditorState {
 		}
 	}
 
-	async exportDocument() {
-		if (this.appView !== 'editor') return;
-		try {
-			await runAppEffect(
-				exportDocumentAs(
-					this.currentDocument(),
-					this.currentPath,
-					`${this.document.addrmapName}.rdl`,
-				),
-			);
-		} catch (error) {
-			if (shouldIgnoreUnavailable(error)) return;
-			this.alertError(error);
-		}
-	}
-
 	async quitApplication() {
 		if (!this.confirmDiscardChanges()) return;
 		await runAppEffect(quitApplication());
@@ -509,10 +492,6 @@ export class EditorState {
 		}
 		if (command === 'save-as') {
 			await this.saveDocument(true);
-			return;
-		}
-		if (command === 'export-rdl-as') {
-			await this.exportDocument();
 			return;
 		}
 		await this.quitApplication();

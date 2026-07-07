@@ -1,6 +1,6 @@
 import type { RdlDocument } from '$lib/rdl/model';
 
-export type MenuCommand = 'new' | 'open' | 'save' | 'save-as' | 'export-rdl-as' | 'quit';
+export type MenuCommand = 'new' | 'open' | 'save' | 'save-as' | 'quit';
 
 export interface RdlFileResult {
 	readonly path: string;

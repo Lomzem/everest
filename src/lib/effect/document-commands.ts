@@ -71,23 +71,6 @@ export function saveDocument(
 	});
 }
 
-export function exportDocumentAs(
-	document: RdlDocument,
-	currentPath: string,
-	suggestedPath: string,
-): Effect.Effect<
-	{ readonly path: string } | null,
-	DesktopError | DocumentValidationFailed,
-	DesktopBridge
-> {
-	return Effect.gen(function* () {
-		const desktop = yield* DesktopBridge;
-		const validDocument = yield* decodeRdlDocument(document);
-		const content = exportRdlDocument(validDocument);
-		return yield* desktop.saveRdlFileAs(content, currentPath || suggestedPath);
-	});
-}
-
 export function syncWindowState(
 	options: SyncWindowOptions,
 ): Effect.Effect<void, never, DesktopBridge> {

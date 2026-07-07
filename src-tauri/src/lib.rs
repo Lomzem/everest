@@ -7,10 +7,7 @@ use std::{
     process::Command,
     sync::Mutex,
 };
-use tauri::{
-    menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder},
-    AppHandle, Emitter, Manager, State, WebviewWindow, Window, WindowEvent,
-};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow, Window, WindowEvent};
 use tauri_plugin_dialog::DialogExt;
 
 const RDL_PARSER_BYTES: &[u8] = include_bytes!(env!("RDL_PARSER_SIDECAR_PATH"));
@@ -207,45 +204,6 @@ async fn quit_application(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-fn emit_menu_command(app: &AppHandle, command: &str) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.emit("rdl:menu-command", command);
-    }
-}
-
-fn build_menu(app: &mut tauri::App) -> tauri::Result<()> {
-    let new_item = MenuItemBuilder::with_id("new", "New RDL")
-        .accelerator("CmdOrCtrl+N")
-        .build(app)?;
-    let open_item = MenuItemBuilder::with_id("open", "Open RDL...")
-        .accelerator("CmdOrCtrl+O")
-        .build(app)?;
-    let save_item = MenuItemBuilder::with_id("save", "Save")
-        .accelerator("CmdOrCtrl+S")
-        .build(app)?;
-    let save_as_item = MenuItemBuilder::with_id("save-as", "Save As...")
-        .accelerator("CmdOrCtrl+Shift+S")
-        .build(app)?;
-    let export_item = MenuItemBuilder::with_id("export-rdl-as", "Export RDL As...").build(app)?;
-    let quit_item = MenuItemBuilder::with_id("quit", "Quit")
-        .accelerator("CmdOrCtrl+Q")
-        .build(app)?;
-
-    let file_menu = SubmenuBuilder::new(app, "File")
-        .item(&new_item)
-        .item(&open_item)
-        .separator()
-        .item(&save_item)
-        .item(&save_as_item)
-        .item(&export_item)
-        .separator()
-        .item(&quit_item)
-        .build()?;
-    let menu = MenuBuilder::new(app).item(&file_menu).build()?;
-    app.set_menu(menu)?;
-    Ok(())
-}
-
 fn handle_window_event(window: &Window, event: &WindowEvent) {
     if let WindowEvent::CloseRequested { api, .. } = event {
         let edited = window
@@ -274,16 +232,6 @@ pub fn run() {
             set_window_title,
             quit_application,
         ])
-        .setup(|app| {
-            build_menu(app)?;
-            Ok(())
-        })
-        .on_menu_event(|app, event| match event.id().0.as_str() {
-            "new" | "open" | "save" | "save-as" | "export-rdl-as" | "quit" => {
-                emit_menu_command(app, event.id().0.as_str());
-            }
-            _ => {}
-        })
         .on_window_event(handle_window_event)
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

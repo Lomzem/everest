@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import AppHotkeys from '$lib/components/app/AppHotkeys.svelte';
+	import AppMenubar from '$lib/components/app/AppMenubar.svelte';
 	import EditorShell from '$lib/components/app/EditorShell.svelte';
 	import WelcomeScreen from '$lib/components/app/WelcomeScreen.svelte';
 	import '$lib/desktop-api';
@@ -34,8 +35,11 @@
 
 <AppHotkeys />
 
-{#if editor.appView === 'welcome'}
-	<WelcomeScreen />
-{:else}
-	<EditorShell />
-{/if}
+<div class="flex h-screen min-h-[720px] flex-col bg-background text-foreground">
+	<AppMenubar />
+	{#if editor.appView === 'welcome'}
+		<WelcomeScreen />
+	{:else}
+		<EditorShell />
+	{/if}
+</div>
