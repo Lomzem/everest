@@ -5,7 +5,8 @@ export type BreadcrumbGroup = { label: string; path: string };
 export type SelectionKind = 'folder' | 'register';
 export type FolderChild =
 	| { kind: 'folder'; id: string; path: string; label: string; address: number | null }
-	| { kind: 'register'; register: Register; address: number };
+	| { kind: 'register'; id: string; register: Register; address: number }
+	| { kind: 'reserved'; id: string; address: number };
 
 export const rootBlockId = 'document-root';
 
@@ -116,6 +117,17 @@ export function buildFolderChildren(
 	groups: HierarchyGroup[],
 	registers: Register[],
 ): FolderChild[] {
+	const hierarchyChildren = buildHierarchyChildren(groupPath, groups, registers);
+	return [...hierarchyChildren, ...buildReservedAddressChildren(hierarchyChildren)].sort(
+		compareFolderChildren,
+	);
+}
+
+export function buildHierarchyChildren(
+	groupPath: string,
+	groups: HierarchyGroup[],
+	registers: Register[],
+): Exclude<FolderChild, { kind: 'reserved' }>[] {
 	const childGroups = new Map<string, { id: string; path: string; label: string }>();
 
 	for (const group of groups) {
@@ -146,11 +158,55 @@ export function buildFolderChildren(
 		.filter((register) => register.group === groupPath)
 		.map((register) => ({
 			kind: 'register' as const,
+			id: register.id,
 			register,
 			address: register.address,
 		}));
+	return [...folderChildren, ...registerChildren].sort(compareFolderChildren);
+}
 
-	return [...folderChildren, ...registerChildren];
+export function buildReservedAddressChildren(
+	registers: Array<{ address: number | null; width?: number }>,
+): Array<{ kind: 'reserved'; id: string; address: number }> {
+	const orderedRegisters = registers
+		.filter(
+			(register): register is { address: number; width?: number } =>
+				Number.isFinite(register.address) && Number(register.address) >= 0,
+		)
+		.sort((left, right) => left.address - right.address);
+
+	return orderedRegisters.flatMap((register, index) => {
+		const nextRegister = orderedRegisters[index + 1];
+		const stride = registerByteWidth(register.width);
+		const nextAddress = nextRegister?.address;
+		if (nextAddress === undefined || nextAddress <= register.address + stride) return [];
+
+		const reservedAddress = register.address + stride;
+		return [
+			{
+				kind: 'reserved',
+				id: `reserved-${reservedAddress.toString(16)}`,
+				address: reservedAddress,
+			},
+		];
+	});
+}
+
+export function registerByteWidth(width = 8) {
+	return Math.max(1, Math.ceil(width / 8));
+}
+
+function compareFolderChildren(left: FolderChild, right: FolderChild) {
+	const leftAddress = left.address ?? Number.POSITIVE_INFINITY;
+	const rightAddress = right.address ?? Number.POSITIVE_INFINITY;
+	if (leftAddress !== rightAddress) return leftAddress - rightAddress;
+	return childKindRank(left.kind) - childKindRank(right.kind);
+}
+
+function childKindRank(kind: FolderChild['kind']) {
+	if (kind === 'folder') return 0;
+	if (kind === 'register') return 1;
+	return 2;
 }
 
 export function groupsForRegisters(groups: HierarchyGroup[], registers: Register[]) {

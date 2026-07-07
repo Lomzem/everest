@@ -12,7 +12,11 @@ import {
 	parseEditableValue,
 	valueInputPattern,
 } from './format';
-import { buildFolderChildren, normalizeHierarchyGroups } from './hierarchy';
+import {
+	buildFolderChildren,
+	buildReservedAddressChildren,
+	normalizeHierarchyGroups,
+} from './hierarchy';
 import { createBlankDocument, createDefaultField, type Field, type Register } from './model';
 import { decodeRdlDocument } from './schema';
 import {
@@ -95,6 +99,40 @@ describe('RDL domain helpers', () => {
 				address: 8,
 			},
 		]);
+	});
+
+	it('builds reserved address rows for register gaps', () => {
+		const control = createTestRegister({ id: 'control', address: 0 });
+		const status = createTestRegister({ id: 'status', address: 0x04 });
+
+		expect(buildReservedAddressChildren([control, status])).toEqual([
+			{ kind: 'reserved', id: 'reserved-1', address: 1 },
+		]);
+		expect(buildFolderChildren('', [], [status, control]).map((child) => child.kind)).toEqual([
+			'register',
+			'reserved',
+			'register',
+		]);
+	});
+
+	it('uses 32-bit register width for 4-byte reserved address rows', () => {
+		const control = createTestRegister({ id: 'control', address: 0, width: 32 });
+		const status = createTestRegister({ id: 'status', address: 0x0c, width: 32 });
+
+		expect(buildReservedAddressChildren([control, status])).toEqual([
+			{ kind: 'reserved', id: 'reserved-4', address: 4 },
+		]);
+	});
+
+	it('does not reserve addresses occupied by child folders', () => {
+		const control = createTestRegister({ id: 'control', address: 0 });
+		const nested = createTestRegister({ id: 'nested', address: 0x04, group: 'Status' });
+		const status = createTestRegister({ id: 'status', address: 0x06 });
+		const groups = normalizeHierarchyGroups([], [nested]);
+
+		expect(
+			buildFolderChildren('', groups, [status, nested, control]).map((child) => child.kind),
+		).toEqual(['register', 'reserved', 'folder', 'reserved', 'register']);
 	});
 
 	it('builds bit segments with reserved gaps', () => {

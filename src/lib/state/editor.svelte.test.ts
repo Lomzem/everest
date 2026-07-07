@@ -42,6 +42,41 @@ describe('EditorState derived names', () => {
 		expect(state.selectedRegister.name).toBe('custom_sdi');
 	});
 
+	it('adds a register at a selected reserved address', async () => {
+		let now = 1;
+		vi.spyOn(Date, 'now').mockImplementation(() => now++);
+		const state = new EditorState();
+		state.newDocument();
+		await state.addRegister('', 0);
+		await state.addRegister('', 0x04);
+		state.selectGroup('');
+
+		expect(state.selectedFolderChildren.map((child) => child.kind)).toEqual([
+			'register',
+			'reserved',
+			'register',
+		]);
+
+		await state.addRegister('', 0x01);
+
+		expect(state.selectedRegister.address).toBe(0x01);
+		expect(state.selectedRegister.group).toBe('');
+		expect(state.selectedKind).toBe('register');
+		expect(state.document.registers.map((register) => register.address)).toEqual([0, 0x04, 0x01]);
+	});
+
+	it('appends default 8-bit registers at byte addresses', async () => {
+		let now = 1;
+		vi.spyOn(Date, 'now').mockImplementation(() => now++);
+		const state = new EditorState();
+		state.newDocument();
+
+		await state.addRegister('');
+		await state.addRegister('');
+
+		expect(state.document.registers.map((register) => register.address)).toEqual([0, 1]);
+	});
+
 	it('derives a new field ID from the display name until manually edited', async () => {
 		const state = new EditorState();
 		state.newDocument();

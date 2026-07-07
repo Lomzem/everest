@@ -71,7 +71,7 @@
 		</div>
 		<div class="overflow-hidden rounded-md border border-border bg-card">
 			{#if editor.selectedFolderChildren.length}
-				{#each editor.selectedFolderChildren as child (child.kind === 'folder' ? child.path : child.register.id)}
+				{#each editor.selectedFolderChildren as child (child.id)}
 					{#if child.kind === 'folder'}
 						<button
 							class="grid w-full grid-cols-[7rem_minmax(0,1fr)] items-center gap-4 border-b border-border px-3 py-3 text-left last:border-b-0 hover:bg-muted"
@@ -91,7 +91,7 @@
 								</span>
 							</span>
 						</button>
-					{:else}
+					{:else if child.kind === 'register'}
 						<button
 							class="grid w-full grid-cols-[7rem_minmax(0,1fr)] items-center gap-4 border-b border-border px-3 py-3 text-left last:border-b-0 hover:bg-muted"
 							onclick={() => editor.selectRegister(child.register.id)}
@@ -115,6 +115,34 @@
 								</span>
 							</span>
 						</button>
+					{:else}
+						<div
+							class="grid w-full grid-cols-[7rem_minmax(0,1fr)_auto] items-center gap-4 border-b border-dashed border-border bg-muted/30 px-3 py-3 last:border-b-0"
+						>
+							<span class="font-mono text-base text-muted-foreground"
+								>{formatAddress(child.address)}</span
+							>
+							<span class="flex min-w-0 items-center gap-3">
+								<span
+									class="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-dashed border-border text-muted-foreground"
+								>
+									<Plus size={15} />
+								</span>
+								<span class="min-w-0">
+									<span class="block truncate font-medium text-muted-foreground">Reserved</span>
+								</span>
+							</span>
+							<Button
+								variant="ghost"
+								size="sm"
+								class="text-primary"
+								disabled={editor.structureReadOnly}
+								onclick={() => editor.addRegister(editor.selectedFolder?.path ?? '', child.address)}
+							>
+								<Plus size={14} />
+								Add
+							</Button>
+						</div>
 					{/if}
 				{/each}
 			{:else}

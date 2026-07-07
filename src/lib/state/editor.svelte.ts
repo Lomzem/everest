@@ -26,11 +26,13 @@ import {
 	basename,
 	buildFolderChildren,
 	buildGroupCrumbs,
+	buildHierarchyChildren,
 	emptyRegister,
 	groupForPath,
 	groupIdsForPath,
 	groupsForRegisters,
 	normalizeHierarchyGroups,
+	registerByteWidth,
 	rootBlockId,
 	type AppView,
 	type SelectionKind,
@@ -154,7 +156,7 @@ export class EditorState {
 	canRedo = $derived(this.redoStack.length > 0 && !this.readOnly);
 
 	folderChildren(groupPath: string) {
-		return buildFolderChildren(groupPath, this.visibleHierarchyGroups, this.filteredRegisters);
+		return buildHierarchyChildren(groupPath, this.visibleHierarchyGroups, this.filteredRegisters);
 	}
 
 	hierarchyGroupForPath(groupPath: string) {
@@ -770,14 +772,12 @@ export class EditorState {
 		groupPath = this.selectedKind === 'folder'
 			? this.selectedGroupPath
 			: this.selectedRegister.group,
+		address = this.nextRegisterAddress(),
 	) {
 		if (!this.canEditStructure()) return;
 		const destinationGroup = this.document.hierarchyGroups.find(
 			(group) => group.path === groupPath,
 		);
-		const address = this.document.registers.length
-			? Math.max(...this.document.registers.map((register) => register.address)) + 4
-			: 0;
 		const next: Register = {
 			id: `new-register-${Date.now()}`,
 			name: '',
@@ -806,6 +806,13 @@ export class EditorState {
 		await tick();
 		focusAndSelect(`[data-register-title-input="${next.id}"]`);
 		this.persistSession();
+	}
+
+	private nextRegisterAddress() {
+		return this.document.registers.length
+			? Math.max(...this.document.registers.map((register) => register.address)) +
+					registerByteWidth(this.selectedRegister.width || 8)
+			: 0;
 	}
 
 	deleteRegister(registerId: string) {
