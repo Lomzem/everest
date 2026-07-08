@@ -216,7 +216,14 @@ async fn save_rdl_file_as(
     if let Some(directory) = suggestion.directory {
         dialog = dialog.set_directory(directory);
     }
-    let file_path = dialog.blocking_save_file();
+    let (tx, mut rx) = tauri::async_runtime::channel(1);
+    dialog.save_file(move |file_path| {
+        let _ = tx.blocking_send(file_path);
+    });
+    let file_path = rx
+        .recv()
+        .await
+        .ok_or_else(|| "Save dialog closed before returning a result".to_string())?;
 
     let Some(file_path) = file_path else {
         return Ok(None);
