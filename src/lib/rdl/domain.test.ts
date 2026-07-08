@@ -252,7 +252,30 @@ describe('RDL domain helpers', () => {
 		};
 
 		expect(resetErrors(field, 'hex')).toEqual(['Reset does not match an enum encoding.']);
+		expect(resetErrors({ ...field, reset: 0 }, 'hex')).toEqual([]);
 		expect(resetErrors({ ...field, reset: 1, resetEnumValueId: 'on' }, 'hex')).toEqual([]);
+	});
+
+	it('infers enum reset selections while decoding parser documents', async () => {
+		const field: Field = {
+			...createDefaultField(),
+			id: 'control-mode',
+			reset: 0,
+			enumName: 'mode_e',
+			values: [
+				{ id: 'control-mode-off', name: 'OFF', value: 0, desc: '' },
+				{ id: 'control-mode-on', name: 'ON', value: 1, desc: '' },
+			],
+		};
+
+		const document = await Effect.runPromise(
+			decodeRdlDocument({
+				...createBlankDocument(),
+				registers: [createTestRegister({ fields: [field] })],
+			}),
+		);
+
+		expect(document.registers[0].fields[0].resetEnumValueId).toBe('control-mode-off');
 	});
 
 	it('reports bit ranges where MSB is less than LSB', () => {

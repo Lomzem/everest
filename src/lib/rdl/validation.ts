@@ -1,4 +1,11 @@
-import type { EnumValue, Field, RdlDocument, Register, ValueMode } from './model';
+import {
+	resolvedResetEnumValueId,
+	type EnumValue,
+	type Field,
+	type RdlDocument,
+	type Register,
+	type ValueMode,
+} from './model';
 import { fieldBitWidth, formatValue, maxValueForWidth } from './format';
 
 const identifierPattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -235,7 +242,7 @@ export function resetErrors(field: Field, valueMode: ValueMode) {
 		);
 	}
 
-	if (!field.values.some((value) => value.id === field.resetEnumValueId)) {
+	if (!resolvedResetEnumValueId(field)) {
 		errors.push('Reset does not match an enum encoding.');
 	}
 

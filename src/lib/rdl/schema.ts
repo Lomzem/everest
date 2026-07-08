@@ -1,5 +1,5 @@
 import { Data, Effect, Schema } from 'effect';
-import { normalizeBitColor, type RdlDocument } from './model';
+import { normalizeBitColor, resolvedResetEnumValueId, type RdlDocument } from './model';
 import { documentIdentifierIssues } from './validation';
 
 export class DocumentValidationFailed extends Data.TaggedError('DocumentValidationFailed')<{
@@ -165,11 +165,17 @@ export function decodeRdlDocument(
 			hierarchyGroups: document.hierarchyGroups.map((group) => ({ ...group })),
 			registers: document.registers.map((register) => ({
 				...register,
-				fields: register.fields.map((field) => ({
-					...field,
-					color: normalizeBitColor(field.color),
-					values: field.values.map((value) => ({ ...value })),
-				})),
+				fields: register.fields.map((field) => {
+					const normalizedField = {
+						...field,
+						color: normalizeBitColor(field.color),
+						values: field.values.map((value) => ({ ...value })),
+					};
+					return {
+						...normalizedField,
+						resetEnumValueId: resolvedResetEnumValueId(normalizedField),
+					};
+				}),
 			})),
 		})),
 		Effect.mapError(

@@ -24,6 +24,14 @@ export interface Field {
 	color: string;
 }
 
+export function resolvedResetEnumValueId(field: Field) {
+	if (field.values.some((value) => value.id === field.resetEnumValueId)) {
+		return field.resetEnumValueId;
+	}
+
+	return field.values.find((value) => value.value === field.reset)?.id;
+}
+
 export interface Register {
 	id: string;
 	name: string;

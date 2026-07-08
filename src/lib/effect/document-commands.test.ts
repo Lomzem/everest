@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Effect, Layer } from 'effect';
-import { createBlankDocument, type RdlDocument } from '$lib/rdl/model';
+import { createBlankDocument, createDefaultField, type RdlDocument } from '$lib/rdl/model';
 import { prepareSourceBackedDocument } from '$lib/rdl/source-edits';
 import { DesktopBridge, DesktopUnavailable, type DesktopBridgeService } from './desktop';
 import { openDocument, saveDocument } from './document-commands';
@@ -236,6 +236,47 @@ describe('document command effects', () => {
 			text: 'addrmap imported {};',
 			readOnly: false,
 		});
+	});
+
+	it('infers enum reset selections for parser-opened numeric resets', async () => {
+		const result = await runWithDesktop(
+			openDocument(),
+			desktopMock({
+				openRdlFile: Effect.succeed({
+					path: '/tmp/imported.rdl',
+					document: {
+						...createBlankDocument(),
+						registers: [
+							{
+								id: 'control',
+								name: 'control',
+								title: 'Control',
+								desc: '',
+								address: 0,
+								width: 8,
+								group: '',
+								sw: 'RW',
+								hw: 'RW',
+								fields: [
+									{
+										...createDefaultField('control-mode'),
+										name: 'mode',
+										reset: 0,
+										enumName: 'mode_e',
+										values: [
+											{ id: 'control-mode-auto', name: 'AUTO', value: 0, desc: '' },
+											{ id: 'control-mode-on', name: 'ON', value: 1, desc: '' },
+										],
+									},
+								],
+							},
+						],
+					},
+				}),
+			}),
+		);
+
+		expect(result?.document.registers[0].fields[0].resetEnumValueId).toBe('control-mode-auto');
 	});
 
 	it('opens documents with duplicate identifiers so users can fix them', async () => {
