@@ -33,4 +33,18 @@ describe('createTauriDesktopApi', () => {
 			content: 'content',
 		});
 	});
+
+	it('sends Save As content and suggestions to the native Save As command', async () => {
+		invoke.mockResolvedValue({ path: String.raw`C:\Users\lawjay\Documents\copy.rdl` });
+		const { createTauriDesktopApi } = await import('./tauri');
+		const api = createTauriDesktopApi();
+
+		const result = await api?.saveRdlFileAs('content', 'top.rdl');
+
+		expect(invoke).toHaveBeenCalledWith('save_rdl_file_as', {
+			content: 'content',
+			suggestedPath: 'top.rdl',
+		});
+		expect(result).toEqual({ path: String.raw`C:\Users\lawjay\Documents\copy.rdl` });
+	});
 });

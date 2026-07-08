@@ -27,7 +27,7 @@ function desktopMock(overrides: Partial<DesktopBridgeService> = {}): DesktopBrid
 
 describe('document command effects', () => {
 	it('validates, exports, and saves new documents with Save As', async () => {
-		const saved: string[] = [];
+		const saves: { content: string; suggestedPath?: string }[] = [];
 		const result = await runWithDesktop(
 			saveDocument({
 				document: createBlankDocument(),
@@ -36,18 +36,18 @@ describe('document command effects', () => {
 				suggestedPath: 'untitled_addrmap.rdl',
 			}),
 			desktopMock({
-				chooseRdlSavePath: (suggestedPath) =>
-					Effect.sync(() => ({ path: `/tmp/${suggestedPath}` })),
-				saveRdlFile: (path, content) =>
+				saveRdlFileAs: (content, suggestedPath) =>
 					Effect.sync(() => {
-						saved.push(`${path}:${content}`);
+						saves.push({ content, suggestedPath });
+						return { path: `/tmp/${suggestedPath}` };
 					}),
 			}),
 		);
 
 		expect(result).toEqual({ path: '/tmp/untitled_addrmap.rdl', saved: true });
-		expect(saved[0]).toContain('/tmp/untitled_addrmap.rdl:property doc_group');
-		expect(saved[0]).toContain('addrmap untitled_addrmap');
+		expect(saves[0].suggestedPath).toBe('untitled_addrmap.rdl');
+		expect(saves[0].content).toContain('property doc_group');
+		expect(saves[0].content).toContain('addrmap untitled_addrmap');
 	});
 
 	it('reports canceled Save As without marking the document saved', async () => {
@@ -59,7 +59,7 @@ describe('document command effects', () => {
 				suggestedPath: 'untitled_addrmap.rdl',
 			}),
 			desktopMock({
-				chooseRdlSavePath: () => Effect.succeed(null),
+				saveRdlFileAs: () => Effect.succeed(null),
 			}),
 		);
 
@@ -68,7 +68,6 @@ describe('document command effects', () => {
 
 	it('suggests only the file name when saving an existing document with Save As', async () => {
 		const suggestedPaths: string[] = [];
-		const normalSavePaths: string[] = [];
 		const result = await runWithDesktop(
 			saveDocument({
 				document: createBlankDocument(),
@@ -77,21 +76,16 @@ describe('document command effects', () => {
 				suggestedPath: 'untitled_addrmap.rdl',
 			}),
 			desktopMock({
-				chooseRdlSavePath: (suggestedPath) =>
+				saveRdlFileAs: (_content, suggestedPath) =>
 					Effect.sync(() => {
 						suggestedPaths.push(suggestedPath ?? '');
 						return { path: '/tmp/projects/copy/top-copy.rdl' };
-					}),
-				saveRdlFile: (path) =>
-					Effect.sync(() => {
-						normalSavePaths.push(path);
 					}),
 			}),
 		);
 
 		expect(result).toEqual({ path: '/tmp/projects/copy/top-copy.rdl', saved: true });
 		expect(suggestedPaths).toEqual(['top.rdl']);
-		expect(normalSavePaths).toEqual(['/tmp/projects/copy/top-copy.rdl']);
 	});
 
 	it('suggests only the file name for Windows paths with Save As', async () => {
@@ -104,12 +98,11 @@ describe('document command effects', () => {
 				suggestedPath: 'untitled_addrmap.rdl',
 			}),
 			desktopMock({
-				chooseRdlSavePath: (suggestedPath) =>
+				saveRdlFileAs: (_content, suggestedPath) =>
 					Effect.sync(() => {
 						suggestedPaths.push(suggestedPath ?? '');
 						return { path: String.raw`C:\Users\lawjay\Documents\top-copy.rdl` };
 					}),
-				saveRdlFile: () => Effect.void,
 			}),
 		);
 
@@ -120,7 +113,7 @@ describe('document command effects', () => {
 		expect(suggestedPaths).toEqual(['top.rdl']);
 	});
 
-	it('opens the Save As dialog before validating the document', async () => {
+	it('validates before opening the Save As dialog', async () => {
 		const calls: string[] = [];
 		const document: RdlDocument = {
 			...createBlankDocument(),
@@ -162,19 +155,15 @@ describe('document command effects', () => {
 				}),
 			),
 			desktopMock({
-				chooseRdlSavePath: (suggestedPath) =>
-					Effect.sync(() => {
-						calls.push(`choose:${suggestedPath}`);
-						return { path: '/tmp/copy.rdl' };
-					}),
-				saveRdlFile: () =>
+				saveRdlFileAs: () =>
 					Effect.sync(() => {
 						calls.push('write');
+						return { path: '/tmp/copy.rdl' };
 					}),
 			}),
 		);
 
-		expect(calls).toEqual(['choose:top.rdl']);
+		expect(calls).toEqual([]);
 		expect(result._tag).toBe('Left');
 	});
 
@@ -250,10 +239,10 @@ describe('document command effects', () => {
 				suggestedPath: 'top.rdl',
 			}),
 			desktopMock({
-				chooseRdlSavePath: () => Effect.succeed({ path: '/tmp/copy.rdl' }),
-				saveRdlFile: (path, content) =>
+				saveRdlFileAs: (content) =>
 					Effect.sync(() => {
-						writes.push({ path, content });
+						writes.push({ path: '/tmp/copy.rdl', content });
+						return { path: '/tmp/copy.rdl' };
 					}),
 			}),
 		);

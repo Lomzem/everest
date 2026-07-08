@@ -94,6 +94,16 @@ fn file_path_to_string(path: tauri_plugin_dialog::FilePath) -> Result<String, St
         .map_err(|path| format!("Unsupported non-filesystem path: {path}"))
 }
 
+fn write_rdl_file(path: impl AsRef<Path>, content: impl AsRef<[u8]>) -> Result<(), String> {
+    let path = path.as_ref();
+    fs::write(path, content).map_err(|error| {
+        format!(
+            "Failed to write RDL file at {path}: {error}",
+            path = path.display()
+        )
+    })
+}
+
 fn parser_cache_key() -> u64 {
     let mut hasher = DefaultHasher::new();
     RDL_PARSER_BYTES.hash(&mut hasher);
@@ -198,7 +208,7 @@ async fn open_rdl_file(app: AppHandle) -> Result<Option<ParsedRdlFile>, String> 
 
 #[tauri::command]
 async fn save_rdl_file(path: String, content: String) -> Result<(), String> {
-    fs::write(path, content).map_err(|error| error.to_string())
+    write_rdl_file(path, content)
 }
 
 async fn choose_save_path(
@@ -250,7 +260,7 @@ async fn save_rdl_file_as(
         return Ok(None);
     };
 
-    fs::write(&file_path, content).map_err(|error| error.to_string())?;
+    write_rdl_file(&file_path, content)?;
     Ok(Some(SaveResult { path: file_path }))
 }
 
@@ -354,5 +364,29 @@ mod tests {
                 file_name: "untitled.rdl".to_string(),
             }
         );
+    }
+
+    #[test]
+    fn ensure_rdl_extension_appends_missing_extension() {
+        assert_eq!(ensure_rdl_extension("/tmp/top"), "/tmp/top.rdl");
+    }
+
+    #[test]
+    fn ensure_rdl_extension_keeps_existing_extension() {
+        assert_eq!(ensure_rdl_extension("/tmp/top.rdl"), "/tmp/top.rdl");
+    }
+
+    #[test]
+    fn write_rdl_file_writes_content_to_path() {
+        let path = std::env::temp_dir().join(format!(
+            "everest-write-test-{}-{}.rdl",
+            std::process::id(),
+            parser_cache_key()
+        ));
+
+        write_rdl_file(&path, "addrmap top {};").expect("write should succeed");
+
+        assert_eq!(fs::read_to_string(&path).unwrap(), "addrmap top {};");
+        let _ = fs::remove_file(path);
     }
 }
