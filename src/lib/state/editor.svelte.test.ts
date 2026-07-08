@@ -146,6 +146,33 @@ describe('EditorState derived names', () => {
 		});
 	});
 
+	it('allows editing a newly added source-backed register', async () => {
+		vi.spyOn(Date, 'now').mockReturnValue(42);
+		const state = new EditorState();
+		state.applyDocument(prepareSourceBackedDocument(sourceDocument()), '/tmp/top.rdl', false);
+
+		await state.addRegister('');
+
+		expect(state.selectedRegister.id).toBe('new-register-42');
+		expect(state.canEditSelectedRegister('title')).toBe(true);
+		expect(state.canEditSelectedRegister('name')).toBe(true);
+		expect(state.canEditSelectedRegister('address')).toBe(true);
+
+		state.updateSelectedRegister({
+			title: 'Status',
+			name: 'status',
+			desc: 'Status register.',
+			address: 4,
+		});
+
+		expect(state.selectedRegister).toMatchObject({
+			title: 'Status',
+			name: 'status',
+			desc: 'Status register.',
+			address: 4,
+		});
+	});
+
 	it('renames the addrmap through the root folder label', () => {
 		const state = new EditorState();
 		state.newDocument();

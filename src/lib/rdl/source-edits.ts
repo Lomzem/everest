@@ -110,7 +110,10 @@ export function canEditRegisterSourceProp(
 	prop: EditableRegisterProp,
 ) {
 	if (!document.source) return true;
-	return Boolean(document.source.editRanges?.registers[registerId]?.[prop]);
+	const editRanges = document.source.editRanges;
+	const registerRanges = editRanges?.registers[registerId];
+	if (!registerRanges) return canEditNewSourceRegister(document, registerId, prop);
+	return Boolean(registerRanges[prop]);
 }
 
 export function canEditFieldSourceProp(
@@ -121,7 +124,7 @@ export function canEditFieldSourceProp(
 ) {
 	if (!document.source) return true;
 	const registerRanges = document.source.editRanges?.registers[registerId];
-	if (!registerRanges) return false;
+	if (!registerRanges) return canEditNewSourceRegister(document, registerId, prop);
 	const fieldRanges = registerRanges.fields[fieldId];
 	if (!fieldRanges) return canEditNewSourceField(registerRanges, prop);
 	return Boolean(fieldRanges[prop] || canInsertMissingFieldSourceProp(fieldRanges, prop));
@@ -136,10 +139,33 @@ export function canEditEnumValueSourceProp(
 ) {
 	if (!document.source) return true;
 	const fieldRanges = document.source.editRanges?.registers[registerId]?.fields[fieldId];
-	if (!fieldRanges) return false;
+	if (!fieldRanges) return canEditNewSourceRegister(document, registerId);
 	const valueRanges = fieldRanges.values[enumValueId];
 	if (!valueRanges) return canEditNewSourceEnumValue(fieldRanges);
 	return Boolean(valueRanges[prop]);
+}
+
+function canEditNewSourceRegister(
+	document: RdlDocument,
+	registerId: string,
+	prop?: EditableRegisterProp | EditableFieldProp,
+) {
+	if (document.source?.editRanges?.addrmapBodyEnd === undefined) return false;
+	if (!registerId.startsWith('new-register-')) return false;
+	if (!document.registers.some((register) => register.id === registerId)) return false;
+	if (!prop) return true;
+	return (
+		prop === 'name' ||
+		prop === 'title' ||
+		prop === 'desc' ||
+		prop === 'address' ||
+		prop === 'group' ||
+		prop === 'sw' ||
+		prop === 'hw' ||
+		prop === 'bitRange' ||
+		prop === 'reset' ||
+		prop === 'enumName'
+	);
 }
 
 function canEditNewSourceField(registerRanges: RegisterSourceEditRanges, prop: EditableFieldProp) {
