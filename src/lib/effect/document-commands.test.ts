@@ -178,6 +178,93 @@ describe('document command effects', () => {
 		expect(result._tag).toBe('Left');
 	});
 
+	it('saves source-backed documents with newly inserted register, field, and enum content', async () => {
+		const writes: { path: string; content: string }[] = [];
+		const sourceDocument = prepareSourceBackedDocument({
+			...createBlankDocument(),
+			addrmapName: 'top',
+			registers: [
+				{
+					id: 'control',
+					name: 'control',
+					title: 'Control',
+					desc: '',
+					address: 0,
+					width: 8,
+					group: '',
+					sw: 'RW',
+					hw: 'RW',
+					fields: [],
+				},
+			],
+			source: {
+				rootPath: '/tmp/top.rdl',
+				text: 'addrmap top { reg { name = "Control"; } control @ 0x0; };',
+				readOnly: true,
+				readOnlyReason: 'Source-safe edit ranges are not available yet.',
+			},
+		});
+		const document: RdlDocument = {
+			...sourceDocument,
+			registers: [
+				...sourceDocument.registers,
+				{
+					id: 'new-register-1',
+					name: 'mock_reg',
+					title: 'Mock Reg',
+					desc: '',
+					address: 4,
+					width: 8,
+					group: '',
+					sw: 'RW',
+					hw: 'RW',
+					fields: [
+						{
+							id: 'field-1',
+							name: 'mock_field',
+							title: 'Mock Field',
+							desc: '',
+							msb: 1,
+							lsb: 0,
+							reset: 0,
+							resetEnumValueId: 'enum-0',
+							sw: 'RW',
+							hw: 'RW',
+							enumName: 'mock_e',
+							values: [
+								{ id: 'enum-0', name: 'ZERO', value: 0, desc: '' },
+								{ id: 'enum-1', name: 'ONE', value: 1, desc: '' },
+							],
+							color: '',
+						},
+					],
+				},
+			],
+		};
+
+		const result = await runWithDesktop(
+			saveDocument({
+				document,
+				currentPath: '/tmp/top.rdl',
+				saveAs: true,
+				suggestedPath: 'top.rdl',
+			}),
+			desktopMock({
+				chooseRdlSavePath: () => Effect.succeed({ path: '/tmp/copy.rdl' }),
+				saveRdlFile: (path, content) =>
+					Effect.sync(() => {
+						writes.push({ path, content });
+					}),
+			}),
+		);
+
+		expect(result).toEqual({ path: '/tmp/copy.rdl', saved: true });
+		expect(writes).toHaveLength(1);
+		expect(writes[0].content).toContain('} mock_reg @ 0x4;');
+		expect(writes[0].content).toContain('enum mock_e {');
+		expect(writes[0].content).toContain('reset = mock_e::ZERO;');
+	});
+
 	it('rejects duplicate register identifiers before saving', async () => {
 		let saveCalls = 0;
 		const document: RdlDocument = {

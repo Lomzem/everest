@@ -18,7 +18,7 @@ export function createTauriDesktopApi(): DesktopApi | undefined {
 	return {
 		platform: navigator.platform.toLowerCase().includes('win') ? 'win32' : 'linux',
 		openRdlFile: () => invoke<RdlFileResult | null>('open_rdl_file'),
-		saveRdlFile: (filePath, content) => invoke<void>('save_rdl_file', { filePath, content }),
+		saveRdlFile: (path, content) => invoke<void>('save_rdl_file', { path, content }),
 		chooseRdlSavePath: (suggestedPath) =>
 			invoke<{ path: string } | null>('choose_save_rdl_file', { suggestedPath }),
 		saveRdlFileAs: (content, suggestedPath) =>

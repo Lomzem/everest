@@ -197,8 +197,8 @@ async fn open_rdl_file(app: AppHandle) -> Result<Option<ParsedRdlFile>, String> 
 }
 
 #[tauri::command]
-async fn save_rdl_file(file_path: String, content: String) -> Result<(), String> {
-    fs::write(file_path, content).map_err(|error| error.to_string())
+async fn save_rdl_file(path: String, content: String) -> Result<(), String> {
+    fs::write(path, content).map_err(|error| error.to_string())
 }
 
 async fn choose_save_path(
