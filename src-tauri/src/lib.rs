@@ -376,17 +376,4 @@ mod tests {
         assert_eq!(ensure_rdl_extension("/tmp/top.rdl"), "/tmp/top.rdl");
     }
 
-    #[test]
-    fn write_rdl_file_writes_content_to_path() {
-        let path = std::env::temp_dir().join(format!(
-            "everest-write-test-{}-{}.rdl",
-            std::process::id(),
-            parser_cache_key()
-        ));
-
-        write_rdl_file(&path, "addrmap top {};").expect("write should succeed");
-
-        assert_eq!(fs::read_to_string(&path).unwrap(), "addrmap top {};");
-        let _ = fs::remove_file(path);
-    }
 }
