@@ -39,6 +39,8 @@ import {
 import { deriveIdentifier, fieldBitWidth, parseEditableValue, range } from '$lib/rdl/format';
 import {
 	sortFieldEnumValues,
+	sortRegisterFields,
+	sortRegistersFields,
 	updateEnumValue as updateEnumValueInRegisters,
 	updateField as updateFieldInRegisters,
 	updateRegister as updateRegisterInRegisters,
@@ -171,9 +173,11 @@ export class EditorState {
 	}
 
 	applyDocument(document: RdlDocument, path: string, nextDirty: boolean) {
+		const registers = sortRegistersFields(document.registers);
 		this.document = {
 			...document,
-			hierarchyGroups: normalizeHierarchyGroups(document.hierarchyGroups, document.registers),
+			registers,
+			hierarchyGroups: normalizeHierarchyGroups(document.hierarchyGroups, registers),
 		};
 		this.currentPath = path;
 		this.clearHistory();
@@ -282,9 +286,11 @@ export class EditorState {
 		const before = this.document;
 		const selectionBefore = this.selectionSnapshot();
 		const dirtyBefore = this.dirty;
+		const registers = sortRegistersFields(document.registers);
 		this.document = {
 			...document,
-			hierarchyGroups: normalizeHierarchyGroups(document.hierarchyGroups, document.registers),
+			registers,
+			hierarchyGroups: normalizeHierarchyGroups(document.hierarchyGroups, registers),
 		};
 		this.markDirty();
 		if (!this.groupedEdit) {
@@ -869,7 +875,7 @@ export class EditorState {
 			...this.document,
 			registers: this.document.registers.map((register) =>
 				register.id === this.selectedRegister.id
-					? { ...register, fields: [...register.fields, next] }
+					? { ...register, fields: sortRegisterFields([...register.fields, next]) }
 					: register,
 			),
 		});
@@ -886,7 +892,9 @@ export class EditorState {
 		this.commitDocumentChange({
 			...this.document,
 			registers: this.document.registers.map((register) =>
-				register.id === this.selectedRegister.id ? { ...register, fields: remaining } : register,
+				register.id === this.selectedRegister.id
+					? { ...register, fields: sortRegisterFields(remaining) }
+					: register,
 			),
 		});
 		this.selectedFieldId = remaining[0]?.id ?? '';

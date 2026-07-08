@@ -12,6 +12,7 @@ import type {
 	SourceRange,
 	SourceToken,
 } from './model';
+import { sortRegistersFields } from './mutations';
 
 export type EditableRegisterProp = keyof Omit<RegisterSourceEditRanges, 'fields'>;
 export type EditableFieldProp = keyof Omit<FieldSourceEditRanges, 'values'>;
@@ -59,10 +60,11 @@ export function prepareSourceBackedDocument(document: RdlDocument): RdlDocument 
 
 	const editRanges = buildSourceEditRanges(document);
 	const hasRanges = Boolean(editRanges.addrmapName || Object.keys(editRanges.registers).length);
+	const registers = sortRegistersFields(applySymbolicResetSelections(document, editRanges));
 
 	return {
 		...document,
-		registers: applySymbolicResetSelections(document, editRanges),
+		registers,
 		source: {
 			...document.source,
 			editRanges,
@@ -75,7 +77,10 @@ export function prepareSourceBackedDocument(document: RdlDocument): RdlDocument 
 export function sourceContentFor(document: RdlDocument): string {
 	const source = document.source;
 	if (!source?.editRanges) return source?.text ?? '';
-	return applySourceEdits(source.text, source.editRanges, document);
+	return applySourceEdits(source.text, source.editRanges, {
+		...document,
+		registers: sortRegistersFields(document.registers),
+	});
 }
 
 function applySymbolicResetSelections(document: RdlDocument, editRanges: RdlSourceEditRanges) {

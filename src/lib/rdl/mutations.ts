@@ -1,5 +1,16 @@
 import type { EnumValue, Field, Register } from './model';
 
+export function sortRegisterFields(fields: Field[]) {
+	return [...fields].sort((a, b) => b.msb - a.msb);
+}
+
+export function sortRegistersFields(registers: Register[]) {
+	return registers.map((register) => ({
+		...register,
+		fields: sortRegisterFields(register.fields),
+	}));
+}
+
 export function updateRegister(
 	registers: Register[],
 	registerId: string,
@@ -20,8 +31,8 @@ export function updateField(
 		if (register.id !== registerId) return register;
 		return {
 			...register,
-			fields: register.fields.map((field) =>
-				field.id === fieldId ? { ...field, ...changes } : field,
+			fields: sortRegisterFields(
+				register.fields.map((field) => (field.id === fieldId ? { ...field, ...changes } : field)),
 			),
 		};
 	});

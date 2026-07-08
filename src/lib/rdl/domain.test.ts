@@ -18,6 +18,7 @@ import {
 	normalizeHierarchyGroups,
 } from './hierarchy';
 import { createBlankDocument, createDefaultField, type Field, type Register } from './model';
+import { sortRegisterFields } from './mutations';
 import { decodeRdlDocument } from './schema';
 import {
 	bitRangeErrors,
@@ -78,6 +79,18 @@ describe('RDL domain helpers', () => {
 		expect(deriveIdentifier('SDI Output 1')).toBe('sdi_output_1');
 		expect(deriveIdentifier('  HDMI   Input--Status!! ')).toBe('hdmi_input_status');
 		expect(deriveIdentifier('---')).toBe('');
+	});
+
+	it('sorts register fields from largest MSB to smallest MSB', () => {
+		const low = { ...createDefaultField('low-field'), msb: 1, lsb: 0 };
+		const high = { ...createDefaultField('high-field'), msb: 7, lsb: 4 };
+		const middle = { ...createDefaultField('middle-field'), msb: 3, lsb: 2 };
+
+		expect(sortRegisterFields([low, high, middle]).map((field) => field.id)).toEqual([
+			'high-field',
+			'middle-field',
+			'low-field',
+		]);
 	});
 
 	it('normalizes implicit top-level groups and builds direct folder children', () => {

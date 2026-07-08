@@ -441,7 +441,7 @@ describe('source-safe edit ranges', () => {
 
 		const content = sourceContentFor(edited);
 
-		expect(content.indexOf('} mode[1:0];')).toBeLessThan(content.indexOf('} status[2:2];'));
+		expect(content.indexOf('} status[2:2];')).toBeLessThan(content.indexOf('} mode[1:0];'));
 	});
 
 	it('rewrites source-backed registers when they are reordered', () => {

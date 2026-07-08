@@ -122,19 +122,24 @@ describe('EditorState derived names', () => {
 		expect(state.selectedRegister.fields).toHaveLength(2);
 		expect(state.canEditField(fieldId, 'title')).toBe(true);
 		state.updateField(fieldId, { title: 'Editable Field', name: 'editable_field' });
-		expect(state.selectedRegister.fields[1].title).toBe('Editable Field');
-		expect(state.selectedRegister.fields[1].name).toBe('editable_field');
+		expect(state.selectedRegister.fields.find((field) => field.id === fieldId)).toMatchObject({
+			title: 'Editable Field',
+			name: 'editable_field',
+		});
 
 		await state.addEnumValue('control-mode');
-		const enumValueId = state.selectedRegister.fields[0].values[0].id;
-		expect(state.selectedRegister.fields[0].values).toHaveLength(1);
+		const modeField = state.selectedRegister.fields.find((field) => field.id === 'control-mode');
+		const enumValueId = modeField?.values[0].id ?? '';
+		expect(modeField?.values).toHaveLength(1);
 		expect(state.canEditEnumValue('control-mode', enumValueId, 'name')).toBe(true);
 		state.updateEnumValue('control-mode', enumValueId, {
 			name: 'ENABLED',
 			value: 1,
 			desc: 'Enabled state.',
 		});
-		expect(state.selectedRegister.fields[0].values[0]).toMatchObject({
+		expect(
+			state.selectedRegister.fields.find((field) => field.id === 'control-mode')?.values[0],
+		).toMatchObject({
 			name: 'ENABLED',
 			value: 1,
 			desc: 'Enabled state.',
@@ -183,6 +188,26 @@ describe('EditorState derived names', () => {
 		expect(state.selectedRegister.fields[0].values.map((value) => value.name)).toEqual([
 			'LOW',
 			'HIGH',
+		]);
+	});
+
+	it('sorts fields by descending MSB after bit edits', async () => {
+		let now = 1;
+		vi.spyOn(Date, 'now').mockImplementation(() => now++);
+		const state = new EditorState();
+		state.newDocument();
+		await state.addRegister('');
+		await state.addField();
+		const highFieldId = state.selectedFieldId;
+		await state.addField();
+		const lowFieldId = state.selectedFieldId;
+
+		state.updateField(highFieldId, { name: 'high', title: 'High', msb: 7, lsb: 4 });
+		state.updateField(lowFieldId, { name: 'low', title: 'Low', msb: 1, lsb: 0 });
+
+		expect(state.selectedRegister.fields.map((field) => field.id)).toEqual([
+			highFieldId,
+			lowFieldId,
 		]);
 	});
 
