@@ -12,6 +12,7 @@ export interface DesktopApi {
 	readonly platform: NodeJS.Platform;
 	readonly openRdlFile: () => Promise<RdlFileResult | null>;
 	readonly saveRdlFile: (path: string, content: string) => Promise<void>;
+	readonly chooseRdlSavePath: (suggestedPath?: string) => Promise<{ path: string } | null>;
 	readonly saveRdlFileAs: (
 		content: string,
 		suggestedPath?: string,

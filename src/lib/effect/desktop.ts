@@ -17,6 +17,9 @@ export interface DesktopBridgeService {
 	readonly api: Effect.Effect<DesktopApi | undefined>;
 	readonly openRdlFile: Effect.Effect<RdlFileResult | null, DesktopError>;
 	readonly saveRdlFile: (path: string, content: string) => Effect.Effect<void, DesktopError>;
+	readonly chooseRdlSavePath: (
+		suggestedPath?: string,
+	) => Effect.Effect<{ path: string } | null, DesktopError>;
 	readonly saveRdlFileAs: (
 		content: string,
 		suggestedPath?: string,
@@ -66,6 +69,8 @@ export const DesktopBridgeLive = Layer.succeed(DesktopBridge, {
 	openRdlFile: invoke('openRdlFile', (desktopApi) => desktopApi.openRdlFile()),
 	saveRdlFile: (path, content) =>
 		invoke('saveRdlFile', (desktopApi) => desktopApi.saveRdlFile(path, content)),
+	chooseRdlSavePath: (suggestedPath) =>
+		invoke('chooseRdlSavePath', (desktopApi) => desktopApi.chooseRdlSavePath(suggestedPath)),
 	saveRdlFileAs: (content, suggestedPath) =>
 		invoke('saveRdlFileAs', (desktopApi) => desktopApi.saveRdlFileAs(content, suggestedPath)),
 	setDocumentEdited: (edited) =>

@@ -62,20 +62,19 @@ export function saveDocument(
 > {
 	return Effect.gen(function* () {
 		const desktop = yield* DesktopBridge;
+		const path =
+			!options.currentPath || options.saveAs
+				? yield* desktop.chooseRdlSavePath(saveAsSuggestedPath(options))
+				: { path: options.currentPath };
+		if (!path) return { path: options.currentPath, saved: false };
+
 		const document = yield* decodeRdlDocument(options.document).pipe(
 			Effect.flatMap(validateRdlDocument),
 		);
 		const content = saveContentFor(document);
 
-		if (!options.currentPath || options.saveAs) {
-			const result = yield* desktop.saveRdlFileAs(content, saveAsSuggestedPath(options));
-			return result
-				? { path: result.path, saved: true }
-				: { path: options.currentPath, saved: false };
-		}
-
-		yield* desktop.saveRdlFile(options.currentPath, content);
-		return { path: options.currentPath, saved: true };
+		yield* desktop.saveRdlFile(path.path, content);
+		return { path: path.path, saved: true };
 	});
 }
 

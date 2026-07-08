@@ -201,12 +201,10 @@ async fn save_rdl_file(file_path: String, content: String) -> Result<(), String>
     fs::write(file_path, content).map_err(|error| error.to_string())
 }
 
-#[tauri::command]
-async fn save_rdl_file_as(
+async fn choose_save_path(
     app: AppHandle,
-    content: String,
     suggested_path: Option<String>,
-) -> Result<Option<SaveResult>, String> {
+) -> Result<Option<String>, String> {
     let suggestion = save_dialog_suggestion(suggested_path);
     let mut dialog = app
         .dialog()
@@ -229,7 +227,29 @@ async fn save_rdl_file_as(
         return Ok(None);
     };
 
-    let file_path = ensure_rdl_extension(&file_path_to_string(file_path)?);
+    Ok(Some(ensure_rdl_extension(&file_path_to_string(file_path)?)))
+}
+
+#[tauri::command]
+async fn choose_save_rdl_file(
+    app: AppHandle,
+    suggested_path: Option<String>,
+) -> Result<Option<SaveResult>, String> {
+    Ok(choose_save_path(app, suggested_path)
+        .await?
+        .map(|path| SaveResult { path }))
+}
+
+#[tauri::command]
+async fn save_rdl_file_as(
+    app: AppHandle,
+    content: String,
+    suggested_path: Option<String>,
+) -> Result<Option<SaveResult>, String> {
+    let Some(file_path) = choose_save_path(app, suggested_path).await? else {
+        return Ok(None);
+    };
+
     fs::write(&file_path, content).map_err(|error| error.to_string())?;
     Ok(Some(SaveResult { path: file_path }))
 }
@@ -277,6 +297,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             open_rdl_file,
             save_rdl_file,
+            choose_save_rdl_file,
             save_rdl_file_as,
             set_document_edited,
             set_window_title,
