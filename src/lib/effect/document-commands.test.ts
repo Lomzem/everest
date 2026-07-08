@@ -113,7 +113,7 @@ describe('document command effects', () => {
 		expect(suggestedPaths).toEqual(['top.rdl']);
 	});
 
-	it('validates before opening the Save As dialog', async () => {
+	it('opens the Save As dialog even when document identifiers are duplicated', async () => {
 		const calls: string[] = [];
 		const document: RdlDocument = {
 			...createBlankDocument(),
@@ -146,14 +146,12 @@ describe('document command effects', () => {
 		};
 
 		const result = await runWithDesktop(
-			Effect.either(
-				saveDocument({
-					document,
-					currentPath: '/tmp/top.rdl',
-					saveAs: true,
-					suggestedPath: 'top.rdl',
-				}),
-			),
+			saveDocument({
+				document,
+				currentPath: '/tmp/top.rdl',
+				saveAs: true,
+				suggestedPath: 'top.rdl',
+			}),
 			desktopMock({
 				saveRdlFileAs: () =>
 					Effect.sync(() => {
@@ -163,8 +161,8 @@ describe('document command effects', () => {
 			}),
 		);
 
-		expect(calls).toEqual([]);
-		expect(result._tag).toBe('Left');
+		expect(calls).toEqual(['write']);
+		expect(result).toEqual({ path: '/tmp/copy.rdl', saved: true });
 	});
 
 	it('saves source-backed documents with newly inserted register, field, and enum content', async () => {
@@ -254,8 +252,8 @@ describe('document command effects', () => {
 		expect(writes[0].content).toContain('reset = mock_e::ZERO;');
 	});
 
-	it('rejects duplicate register identifiers before saving', async () => {
-		let saveCalls = 0;
+	it('saves duplicate register identifiers instead of blocking the write', async () => {
+		const writes: string[] = [];
 		const document: RdlDocument = {
 			...createBlankDocument(),
 			addrmapName: 'top',
@@ -288,34 +286,28 @@ describe('document command effects', () => {
 		};
 
 		const result = await runWithDesktop(
-			Effect.either(
-				saveDocument({
-					document,
-					currentPath: '/tmp/top.rdl',
-					saveAs: false,
-					suggestedPath: 'top.rdl',
-				}),
-			),
+			saveDocument({
+				document,
+				currentPath: '/tmp/top.rdl',
+				saveAs: false,
+				suggestedPath: 'top.rdl',
+			}),
 			desktopMock({
-				saveRdlFile: () =>
+				saveRdlFile: (path, content) =>
 					Effect.sync(() => {
-						saveCalls += 1;
+						writes.push(`${path}:${content}`);
 					}),
 			}),
 		);
 
-		expect(result._tag).toBe('Left');
-		if (result._tag === 'Left') {
-			expect(result.left).toMatchObject({
-				_tag: 'DocumentValidationFailed',
-				message: 'Duplicate register identifier "control" in addrmap "top".',
-			});
-		}
-		expect(saveCalls).toBe(0);
+		expect(result).toEqual({ path: '/tmp/top.rdl', saved: true });
+		expect(writes).toHaveLength(1);
+		expect(writes[0]).toContain('} control @ 0x0;');
+		expect(writes[0]).toContain('} control @ 0x1;');
 	});
 
-	it('rejects duplicate enum identifiers before saving', async () => {
-		let saveCalls = 0;
+	it('saves duplicate enum identifiers instead of blocking the write', async () => {
+		const writes: string[] = [];
 		const document: RdlDocument = {
 			...createBlankDocument(),
 			addrmapName: 'top',
@@ -378,31 +370,23 @@ describe('document command effects', () => {
 		};
 
 		const result = await runWithDesktop(
-			Effect.either(
-				saveDocument({
-					document,
-					currentPath: '/tmp/top.rdl',
-					saveAs: false,
-					suggestedPath: 'top.rdl',
-				}),
-			),
+			saveDocument({
+				document,
+				currentPath: '/tmp/top.rdl',
+				saveAs: false,
+				suggestedPath: 'top.rdl',
+			}),
 			desktopMock({
-				saveRdlFile: () =>
+				saveRdlFile: (path, content) =>
 					Effect.sync(() => {
-						saveCalls += 1;
+						writes.push(`${path}:${content}`);
 					}),
 			}),
 		);
 
-		expect(result._tag).toBe('Left');
-		if (result._tag === 'Left') {
-			expect(result.left).toMatchObject({
-				_tag: 'DocumentValidationFailed',
-				message:
-					'Duplicate enum identifier "mode_e" also used in registers "control" and "status".',
-			});
-		}
-		expect(saveCalls).toBe(0);
+		expect(result).toEqual({ path: '/tmp/top.rdl', saved: true });
+		expect(writes).toHaveLength(1);
+		expect(writes[0].match(/enum mode_e/g)).toHaveLength(2);
 	});
 
 	it('attaches parser source metadata to opened documents', async () => {
