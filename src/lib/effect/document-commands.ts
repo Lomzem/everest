@@ -38,7 +38,7 @@ export function openDocument(): Effect.Effect<
 		const document = yield* decodeRdlDocument({
 			...result.document,
 			source: result.source ?? result.document.source,
-		}).pipe(Effect.flatMap(validateRdlDocument));
+		});
 		return { path: result.path, document: prepareSourceBackedDocument(document) };
 	});
 }

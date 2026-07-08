@@ -238,6 +238,54 @@ describe('document command effects', () => {
 		});
 	});
 
+	it('opens documents with duplicate identifiers so users can fix them', async () => {
+		const document: RdlDocument = {
+			...createBlankDocument(),
+			registers: [
+				{
+					id: 'control-a',
+					name: 'control',
+					title: 'Control A',
+					desc: '',
+					address: 0,
+					width: 8,
+					group: '',
+					sw: 'RW',
+					hw: 'RW',
+					fields: [],
+				},
+				{
+					id: 'control-b',
+					name: 'control',
+					title: 'Control B',
+					desc: '',
+					address: 1,
+					width: 8,
+					group: 'Nested',
+					sw: 'RW',
+					hw: 'RW',
+					fields: [],
+				},
+			],
+		};
+
+		const result = await runWithDesktop(
+			openDocument(),
+			desktopMock({
+				openRdlFile: Effect.succeed({
+					path: '/tmp/duplicates.rdl',
+					document,
+				}),
+			}),
+		);
+
+		expect(result?.path).toBe('/tmp/duplicates.rdl');
+		expect(result?.document.registers.map((register) => register.name)).toEqual([
+			'control',
+			'control',
+		]);
+	});
+
 	it('saves parser-backed read-only documents without normalizing the source text', async () => {
 		const saved: string[] = [];
 		const document = {
