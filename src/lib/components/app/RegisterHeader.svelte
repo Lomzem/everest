@@ -7,8 +7,18 @@
 		isValidAddressInput,
 		parseAddress,
 	} from '$lib/rdl/format';
+	import { identifierErrors, registerIdentifierErrors } from '$lib/rdl/validation';
 	import * as Select from '$lib/components/ui/select';
 	import EditorBreadcrumbs from './EditorBreadcrumbs.svelte';
+
+	const registerIdErrors = $derived([
+		...identifierErrors(editor.selectedRegister.name, 'Register ID'),
+		...registerIdentifierErrors(editor.document, editor.selectedRegister),
+	]);
+	const errorClass = (errors: string[]) =>
+		errors.length
+			? 'border-destructive/50 focus:border-destructive'
+			: 'border-input focus:border-primary';
 
 	function updateAddressInput(event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
@@ -121,17 +131,34 @@
 				<span class="text-base font-semibold uppercase tracking-normal text-muted-foreground"
 					>ID</span
 				>
-				<input
-					class="w-full rounded-md border border-input bg-background px-2 py-1 font-mono text-base text-foreground outline-none hover:border-primary/60 focus:border-primary"
-					data-register-name-input={editor.selectedRegister.id}
-					placeholder="new_register"
-					value={editor.selectedRegister.name}
-					disabled={!editor.canEditSelectedRegister('name')}
-					onfocus={() => editor.beginGroupedDocumentEdit()}
-					oninput={(event) => editor.updateSelectedRegister({ name: textInput(event) })}
-					onblur={() => editor.endGroupedDocumentEdit()}
-					aria-label="Register identifier"
-				/>
+				<span class="group/error relative block">
+					<input
+						class={`w-full rounded-md border bg-background px-2 py-1 pr-8 font-mono text-base text-foreground outline-none hover:border-primary/60 ${errorClass(
+							registerIdErrors,
+						)}`}
+						data-register-name-input={editor.selectedRegister.id}
+						placeholder="new_register"
+						value={editor.selectedRegister.name}
+						disabled={!editor.canEditSelectedRegister('name')}
+						title={registerIdErrors.join(' ')}
+						onfocus={() => editor.beginGroupedDocumentEdit()}
+						oninput={(event) => editor.updateSelectedRegister({ name: textInput(event) })}
+						onblur={() => editor.endGroupedDocumentEdit()}
+						aria-label="Register identifier"
+					/>
+					{#if registerIdErrors.length}
+						<span
+							class="pointer-events-none absolute right-1 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full bg-destructive/10 text-base font-semibold text-destructive"
+						>
+							!
+						</span>
+						<span
+							class="pointer-events-none absolute bottom-full left-0 z-20 mb-2 hidden w-max max-w-sm rounded-md border border-destructive/30 bg-popover px-2 py-1 text-base leading-5 text-destructive shadow-lg group-hover/error:block group-focus-within/error:block"
+						>
+							{registerIdErrors.join(' ')}
+						</span>
+					{/if}
+				</span>
 			</label>
 			<label class="mt-3 block w-full space-y-1">
 				<span class="text-base font-semibold uppercase tracking-normal text-muted-foreground"

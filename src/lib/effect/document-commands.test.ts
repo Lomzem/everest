@@ -63,6 +63,157 @@ describe('document command effects', () => {
 		expect(result).toEqual({ path: '', saved: false });
 	});
 
+	it('rejects duplicate register identifiers before saving', async () => {
+		let saveCalls = 0;
+		const document: RdlDocument = {
+			...createBlankDocument(),
+			addrmapName: 'top',
+			registers: [
+				{
+					id: 'root-control',
+					name: 'control',
+					title: 'Control',
+					desc: '',
+					address: 0,
+					width: 8,
+					group: '',
+					sw: 'RW',
+					hw: 'RW',
+					fields: [],
+				},
+				{
+					id: 'nested-control',
+					name: 'control',
+					title: 'Nested Control',
+					desc: '',
+					address: 1,
+					width: 8,
+					group: 'Nested',
+					sw: 'RW',
+					hw: 'RW',
+					fields: [],
+				},
+			],
+		};
+
+		const result = await runWithDesktop(
+			Effect.either(
+				saveDocument({
+					document,
+					currentPath: '/tmp/top.rdl',
+					saveAs: false,
+					suggestedPath: 'top.rdl',
+				}),
+			),
+			desktopMock({
+				saveRdlFile: () =>
+					Effect.sync(() => {
+						saveCalls += 1;
+					}),
+			}),
+		);
+
+		expect(result._tag).toBe('Left');
+		if (result._tag === 'Left') {
+			expect(result.left).toMatchObject({
+				_tag: 'DocumentValidationFailed',
+				message: 'Duplicate register identifier "control" in addrmap "top".',
+			});
+		}
+		expect(saveCalls).toBe(0);
+	});
+
+	it('rejects duplicate enum identifiers before saving', async () => {
+		let saveCalls = 0;
+		const document: RdlDocument = {
+			...createBlankDocument(),
+			addrmapName: 'top',
+			registers: [
+				{
+					id: 'control',
+					name: 'control',
+					title: 'Control',
+					desc: '',
+					address: 0,
+					width: 8,
+					group: '',
+					sw: 'RW',
+					hw: 'RW',
+					fields: [
+						{
+							id: 'mode',
+							name: 'mode',
+							title: 'Mode',
+							desc: '',
+							msb: 0,
+							lsb: 0,
+							reset: 0,
+							sw: 'RW',
+							hw: 'RW',
+							enumName: 'mode_e',
+							values: [{ id: 'mode-off', name: 'OFF', value: 0, desc: '' }],
+							color: '',
+						},
+					],
+				},
+				{
+					id: 'status',
+					name: 'status',
+					title: 'Status',
+					desc: '',
+					address: 1,
+					width: 8,
+					group: '',
+					sw: 'RW',
+					hw: 'RW',
+					fields: [
+						{
+							id: 'state',
+							name: 'state',
+							title: 'State',
+							desc: '',
+							msb: 0,
+							lsb: 0,
+							reset: 0,
+							sw: 'RW',
+							hw: 'RW',
+							enumName: 'mode_e',
+							values: [{ id: 'state-off', name: 'OFF', value: 0, desc: '' }],
+							color: '',
+						},
+					],
+				},
+			],
+		};
+
+		const result = await runWithDesktop(
+			Effect.either(
+				saveDocument({
+					document,
+					currentPath: '/tmp/top.rdl',
+					saveAs: false,
+					suggestedPath: 'top.rdl',
+				}),
+			),
+			desktopMock({
+				saveRdlFile: () =>
+					Effect.sync(() => {
+						saveCalls += 1;
+					}),
+			}),
+		);
+
+		expect(result._tag).toBe('Left');
+		if (result._tag === 'Left') {
+			expect(result.left).toMatchObject({
+				_tag: 'DocumentValidationFailed',
+				message:
+					'Duplicate enum identifier "mode_e" also used in registers "control" and "status".',
+			});
+		}
+		expect(saveCalls).toBe(0);
+	});
+
 	it('attaches parser source metadata to opened documents', async () => {
 		const result = await runWithDesktop(
 			openDocument(),

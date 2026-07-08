@@ -21,10 +21,13 @@ import { createBlankDocument, createDefaultField, type Field, type Register } fr
 import { decodeRdlDocument } from './schema';
 import {
 	bitRangeErrors,
+	documentIdentifierIssues,
+	enumIdentifierErrors,
 	enumValueErrors,
 	fieldOverlapErrors,
 	fieldOverlaps,
 	identifierErrors,
+	registerIdentifierErrors,
 	resetErrors,
 } from './validation';
 
@@ -273,6 +276,85 @@ describe('RDL domain helpers', () => {
 		expect(identifierErrors('bad-name', 'Enum value name')).toEqual([
 			'Enum value name can only contain letters, numbers, and underscores.',
 		]);
+	});
+
+	it('reports duplicate register identifiers across hierarchy groups', () => {
+		const document = {
+			...createBlankDocument(),
+			addrmapName: 'top',
+			registers: [
+				createTestRegister({ id: 'root-control', name: 'control', group: '' }),
+				createTestRegister({ id: 'nested-control', name: 'control', group: 'Nested/Video' }),
+				createTestRegister({ id: 'status', name: 'status', group: 'Nested' }),
+			],
+		};
+
+		expect(documentIdentifierIssues(document)).toEqual([
+			{
+				kind: 'register',
+				identifier: 'control',
+				ids: ['root-control', 'nested-control'],
+				message: 'Duplicate register identifier "control" in addrmap "top".',
+			},
+		]);
+		expect(registerIdentifierErrors(document, document.registers[1])).toEqual([
+			'Duplicate register identifier "control" in addrmap "top".',
+		]);
+		expect(registerIdentifierErrors(document, document.registers[2])).toEqual([]);
+	});
+
+	it('reports duplicate enum identifiers across registers and ignores empty enum names', () => {
+		const modeField = {
+			...createDefaultField('mode'),
+			enumName: 'mode_e',
+			values: [{ id: 'mode-off', name: 'OFF', value: 0, desc: '' }],
+		};
+		const statusField = {
+			...createDefaultField('status'),
+			enumName: 'mode_e',
+			values: [{ id: 'status-off', name: 'OFF', value: 0, desc: '' }],
+		};
+		const emptyEnumNameField = {
+			...createDefaultField('empty'),
+			enumName: '',
+			values: [{ id: 'empty-off', name: 'OFF', value: 0, desc: '' }],
+		};
+		const document = {
+			...createBlankDocument(),
+			addrmapName: 'top',
+			registers: [
+				createTestRegister({
+					id: 'control',
+					name: 'control',
+					fields: [modeField, emptyEnumNameField],
+				}),
+				createTestRegister({
+					id: 'status',
+					name: 'status',
+					fields: [statusField],
+				}),
+				createTestRegister({
+					id: 'mode-register',
+					name: 'mode_e',
+					fields: [{ ...createDefaultField('plain'), enumName: '', values: [] }],
+				}),
+			],
+		};
+
+		expect(documentIdentifierIssues(document)).toEqual([
+			{
+				kind: 'enum',
+				identifier: 'mode_e',
+				ids: ['mode', 'status'],
+				registerNames: ['control', 'status'],
+				message:
+					'Duplicate enum identifier "mode_e" also used in registers "control" and "status".',
+			},
+		]);
+		expect(enumIdentifierErrors(document, modeField)).toEqual([
+			'Duplicate enum identifier "mode_e" also used in register "status".',
+		]);
+		expect(enumIdentifierErrors(document, emptyEnumNameField)).toEqual([]);
 	});
 
 	it('exports selected enum reset values symbolically', () => {

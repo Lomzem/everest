@@ -1,7 +1,9 @@
 import { Data, Effect, Schema } from 'effect';
 import { normalizeBitColor, type RdlDocument } from './model';
+import { documentIdentifierIssues } from './validation';
 
 export class DocumentValidationFailed extends Data.TaggedError('DocumentValidationFailed')<{
+	readonly message: string;
 	readonly cause: unknown;
 }> {}
 
@@ -170,6 +172,27 @@ export function decodeRdlDocument(
 				})),
 			})),
 		})),
-		Effect.mapError((cause) => new DocumentValidationFailed({ cause })),
+		Effect.mapError(
+			(cause) =>
+				new DocumentValidationFailed({ message: 'The RDL document shape is invalid.', cause }),
+		),
 	);
+}
+
+export function validateRdlDocument(
+	document: RdlDocument,
+): Effect.Effect<RdlDocument, DocumentValidationFailed> {
+	return Effect.gen(function* () {
+		const issues = documentIdentifierIssues(document);
+		if (issues.length) {
+			return yield* Effect.fail(
+				new DocumentValidationFailed({
+					message: issues.map((issue) => issue.message).join('\n'),
+					cause: issues,
+				}),
+			);
+		}
+
+		return document;
+	});
 }

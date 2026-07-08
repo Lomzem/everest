@@ -10,6 +10,9 @@ export function effectErrorMessage(error: unknown) {
 	if (typeof error === 'object' && error && '_tag' in error) {
 		const tag = String(error._tag);
 		if (tag === 'DesktopUnavailable') return 'Desktop integration is unavailable.';
+		if (tag === 'DocumentValidationFailed' && 'message' in error) {
+			return String(error.message);
+		}
 		if (tag === 'DocumentValidationFailed') return 'The RDL document shape is invalid.';
 		if (tag === 'DesktopOperationFailed' && 'cause' in error) {
 			const cause = error.cause;

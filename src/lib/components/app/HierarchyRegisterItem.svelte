@@ -4,6 +4,7 @@
 	import * as ContextMenu from '$lib/components/ui/context-menu';
 	import type { Register } from '$lib/rdl/model';
 	import { formatAddress } from '$lib/rdl/format';
+	import { registerIdentifierErrors } from '$lib/rdl/validation';
 	import { editor } from '$lib/state/editor.svelte';
 	import { ui } from '$lib/state/ui.svelte';
 	import HighlightedText from './HighlightedText.svelte';
@@ -12,6 +13,7 @@
 	let searchResult = $derived(editor.searchResultForRegister(register.id));
 	let label = $derived(register.title || register.name);
 	let labelRanges = $derived(register.title ? searchResult?.titleRanges : searchResult?.nameRanges);
+	let registerIdErrors = $derived(registerIdentifierErrors(editor.document, register));
 </script>
 
 <ContextMenu.Root>
@@ -55,7 +57,12 @@
 					<span class="block truncate font-medium">
 						<HighlightedText text={label} ranges={labelRanges ?? []} />
 					</span>
-					<span class="block truncate font-mono text-base text-muted-foreground/80">
+					<span
+						class={`block truncate font-mono text-base ${
+							registerIdErrors.length ? 'text-destructive' : 'text-muted-foreground/80'
+						}`}
+						title={registerIdErrors.join(' ')}
+					>
 						<HighlightedText text={register.name} ranges={searchResult?.nameRanges ?? []} />
 					</span>
 					<span class="block text-base text-muted-foreground/80"
