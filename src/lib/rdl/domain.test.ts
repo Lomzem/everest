@@ -27,6 +27,7 @@ import {
 	fieldOverlapErrors,
 	fieldOverlaps,
 	identifierErrors,
+	registerEnumIdentifierErrors,
 	registerIdentifierErrors,
 	resetErrors,
 } from './validation';
@@ -353,6 +354,9 @@ describe('RDL domain helpers', () => {
 		]);
 		expect(enumIdentifierErrors(document, modeField)).toEqual([
 			'Duplicate enum identifier "mode_e" also used in register "status".',
+		]);
+		expect(registerEnumIdentifierErrors(document, document.registers[1])).toEqual([
+			'Duplicate enum identifier "mode_e" also used in register "control".',
 		]);
 		expect(enumIdentifierErrors(document, emptyEnumNameField)).toEqual([]);
 	});

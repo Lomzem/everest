@@ -72,6 +72,10 @@ export function enumIdentifierErrors(document: RdlDocument, field: Field) {
 	return [duplicateEnumMessage(identifier, duplicateRegisters)];
 }
 
+export function registerEnumIdentifierErrors(document: RdlDocument, register: Register) {
+	return uniqueItems(register.fields.flatMap((field) => enumIdentifierErrors(document, field)));
+}
+
 function duplicateIdentifierIssues(
 	kind: DocumentIdentifierIssueKind,
 	items: readonly { readonly id: string; readonly identifier: string }[],
