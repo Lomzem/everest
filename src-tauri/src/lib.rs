@@ -49,6 +49,45 @@ fn ensure_rdl_extension(file_path: &str) -> String {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
+struct SaveDialogSuggestion {
+    directory: Option<String>,
+    file_name: String,
+}
+
+fn save_dialog_suggestion(suggested_path: Option<String>) -> SaveDialogSuggestion {
+    let suggested_path = suggested_path.unwrap_or_else(|| "untitled.rdl".to_string());
+    let suggested_path = suggested_path.trim();
+    if suggested_path.is_empty() {
+        return SaveDialogSuggestion {
+            directory: None,
+            file_name: "untitled.rdl".to_string(),
+        };
+    }
+
+    let Some(separator_index) = suggested_path.rfind(['/', '\\']) else {
+        return SaveDialogSuggestion {
+            directory: None,
+            file_name: suggested_path.to_string(),
+        };
+    };
+    let directory = suggested_path[..separator_index].trim_end_matches(['/', '\\']);
+    let file_name = suggested_path[separator_index + 1..].trim();
+
+    SaveDialogSuggestion {
+        directory: if directory.is_empty() {
+            None
+        } else {
+            Some(directory.to_string())
+        },
+        file_name: if file_name.is_empty() {
+            "untitled.rdl".to_string()
+        } else {
+            file_name.to_string()
+        },
+    }
+}
+
 fn file_path_to_string(path: tauri_plugin_dialog::FilePath) -> Result<String, String> {
     path.into_path()
         .map(|path| path.to_string_lossy().into_owned())
@@ -168,12 +207,16 @@ async fn save_rdl_file_as(
     content: String,
     suggested_path: Option<String>,
 ) -> Result<Option<SaveResult>, String> {
-    let file_path = app
+    let suggestion = save_dialog_suggestion(suggested_path);
+    let mut dialog = app
         .dialog()
         .file()
         .add_filter("SystemRDL", &["rdl"])
-        .set_file_name(suggested_path.unwrap_or_else(|| "untitled.rdl".to_string()))
-        .blocking_save_file();
+        .set_file_name(suggestion.file_name);
+    if let Some(directory) = suggestion.directory {
+        dialog = dialog.set_directory(directory);
+    }
+    let file_path = dialog.blocking_save_file();
 
     let Some(file_path) = file_path else {
         return Ok(None);
@@ -235,4 +278,53 @@ pub fn run() {
         .on_window_event(handle_window_event)
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn save_dialog_suggestion_uses_file_names_as_is() {
+        assert_eq!(
+            save_dialog_suggestion(Some("top.rdl".to_string())),
+            SaveDialogSuggestion {
+                directory: None,
+                file_name: "top.rdl".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn save_dialog_suggestion_splits_unix_paths() {
+        assert_eq!(
+            save_dialog_suggestion(Some("/tmp/projects/top.rdl".to_string())),
+            SaveDialogSuggestion {
+                directory: Some("/tmp/projects".to_string()),
+                file_name: "top.rdl".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn save_dialog_suggestion_splits_windows_paths() {
+        assert_eq!(
+            save_dialog_suggestion(Some(r"C:\Users\lawjay\Documents\top.rdl".to_string())),
+            SaveDialogSuggestion {
+                directory: Some(r"C:\Users\lawjay\Documents".to_string()),
+                file_name: "top.rdl".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn save_dialog_suggestion_falls_back_for_empty_names() {
+        assert_eq!(
+            save_dialog_suggestion(Some(r"C:\Users\lawjay\Documents\".to_string())),
+            SaveDialogSuggestion {
+                directory: Some(r"C:\Users\lawjay\Documents".to_string()),
+                file_name: "untitled.rdl".to_string(),
+            }
+        );
+    }
 }

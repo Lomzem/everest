@@ -63,6 +63,59 @@ describe('document command effects', () => {
 		expect(result).toEqual({ path: '', saved: false });
 	});
 
+	it('suggests only the file name when saving an existing document with Save As', async () => {
+		const suggestedPaths: string[] = [];
+		const normalSavePaths: string[] = [];
+		const result = await runWithDesktop(
+			saveDocument({
+				document: createBlankDocument(),
+				currentPath: '/tmp/projects/current/top.rdl',
+				saveAs: true,
+				suggestedPath: 'untitled_addrmap.rdl',
+			}),
+			desktopMock({
+				saveRdlFile: (path) =>
+					Effect.sync(() => {
+						normalSavePaths.push(path);
+					}),
+				saveRdlFileAs: (_content, suggestedPath) =>
+					Effect.sync(() => {
+						suggestedPaths.push(suggestedPath ?? '');
+						return { path: '/tmp/projects/copy/top-copy.rdl' };
+					}),
+			}),
+		);
+
+		expect(result).toEqual({ path: '/tmp/projects/copy/top-copy.rdl', saved: true });
+		expect(suggestedPaths).toEqual(['top.rdl']);
+		expect(normalSavePaths).toEqual([]);
+	});
+
+	it('suggests only the file name for Windows paths with Save As', async () => {
+		const suggestedPaths: string[] = [];
+		const result = await runWithDesktop(
+			saveDocument({
+				document: createBlankDocument(),
+				currentPath: String.raw`C:\Users\lawjay\Documents\top.rdl`,
+				saveAs: true,
+				suggestedPath: 'untitled_addrmap.rdl',
+			}),
+			desktopMock({
+				saveRdlFileAs: (_content, suggestedPath) =>
+					Effect.sync(() => {
+						suggestedPaths.push(suggestedPath ?? '');
+						return { path: String.raw`C:\Users\lawjay\Documents\top-copy.rdl` };
+					}),
+			}),
+		);
+
+		expect(result).toEqual({
+			path: String.raw`C:\Users\lawjay\Documents\top-copy.rdl`,
+			saved: true,
+		});
+		expect(suggestedPaths).toEqual(['top.rdl']);
+	});
+
 	it('rejects duplicate register identifiers before saving', async () => {
 		let saveCalls = 0;
 		const document: RdlDocument = {

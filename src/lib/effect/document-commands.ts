@@ -48,6 +48,11 @@ function saveContentFor(document: RdlDocument) {
 	return document.source?.text ?? exportRdlDocument(document);
 }
 
+function saveAsSuggestedPath(options: SaveDocumentOptions) {
+	if (!options.currentPath) return options.suggestedPath;
+	return options.currentPath.split(/[\\/]/).filter(Boolean).at(-1) ?? options.suggestedPath;
+}
+
 export function saveDocument(
 	options: SaveDocumentOptions,
 ): Effect.Effect<
@@ -63,10 +68,7 @@ export function saveDocument(
 		const content = saveContentFor(document);
 
 		if (!options.currentPath || options.saveAs) {
-			const result = yield* desktop.saveRdlFileAs(
-				content,
-				options.currentPath || options.suggestedPath,
-			);
+			const result = yield* desktop.saveRdlFileAs(content, saveAsSuggestedPath(options));
 			return result
 				? { path: result.path, saved: true }
 				: { path: options.currentPath, saved: false };
