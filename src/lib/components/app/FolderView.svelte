@@ -5,6 +5,12 @@
 	import { formatAddress } from '$lib/rdl/format';
 	import { editor, textInput } from '$lib/state/editor.svelte';
 	import EditorBreadcrumbs from './EditorBreadcrumbs.svelte';
+
+	function reservedAddressLabel(address: number, endAddress: number) {
+		return address === endAddress
+			? formatAddress(address)
+			: `${formatAddress(address)}-${formatAddress(endAddress)}`;
+	}
 </script>
 
 {#if editor.selectedFolder}
@@ -111,7 +117,7 @@
 							class="grid w-full grid-cols-[7rem_minmax(0,1fr)_auto] items-center gap-4 border-b border-dashed border-border bg-muted/30 px-3 py-3 last:border-b-0"
 						>
 							<span class="font-mono text-base text-muted-foreground"
-								>{formatAddress(child.address)}</span
+								>{reservedAddressLabel(child.address, child.endAddress)}</span
 							>
 							<span class="flex min-w-0 items-center gap-3">
 								<span

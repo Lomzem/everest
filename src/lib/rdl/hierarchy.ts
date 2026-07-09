@@ -6,7 +6,9 @@ export type SelectionKind = 'folder' | 'register';
 export type FolderChild =
 	| { kind: 'folder'; id: string; path: string; label: string; address: number | null }
 	| { kind: 'register'; id: string; register: Register; address: number }
-	| { kind: 'reserved'; id: string; address: number };
+	| { kind: 'reserved'; id: string; address: number; endAddress: number };
+
+type AddressRange = { address: number; endAddress: number };
 
 export const rootBlockId = 'document-root';
 
@@ -120,15 +122,8 @@ export function buildFolderChildren(
 	const hierarchyChildren = buildHierarchyChildren(groupPath, groups, registers);
 	return [
 		...hierarchyChildren,
-		...buildReservedAddressChildren(registersUnder(groupPath, registers)),
+		...buildReservedAddressRanges(childRanges(hierarchyChildren, registers)),
 	].sort(compareFolderChildren);
-}
-
-function registersUnder(groupPath: string, registers: Register[]) {
-	if (!groupPath) return registers;
-	return registers.filter(
-		(register) => register.group === groupPath || register.group.startsWith(`${groupPath}/`),
-	);
 }
 
 export function buildHierarchyChildren(
@@ -175,33 +170,79 @@ export function buildHierarchyChildren(
 
 export function buildReservedAddressChildren(
 	registers: Array<{ address: number | null; width?: number }>,
-): Array<{ kind: 'reserved'; id: string; address: number }> {
-	const orderedRegisters = registers
+): Array<{ kind: 'reserved'; id: string; address: number; endAddress: number }> {
+	return buildReservedAddressRanges(registers.flatMap(registerRange));
+}
+
+export function registerByteWidth(width = 8) {
+	return Math.max(1, Math.ceil(width / 8));
+}
+
+function childRanges(
+	children: Exclude<FolderChild, { kind: 'reserved' }>[],
+	registers: Register[],
+): AddressRange[] {
+	return children.flatMap((child) => {
+		if (child.kind === 'register') return registerRange(child.register);
+		return folderRange(child.path, registers);
+	});
+}
+
+function folderRange(groupPath: string, registers: Register[]): AddressRange[] {
+	const ranges = registers
 		.filter(
-			(register): register is { address: number; width?: number } =>
-				Number.isFinite(register.address) && Number(register.address) >= 0,
+			(register) => register.group === groupPath || register.group.startsWith(`${groupPath}/`),
 		)
-		.sort((left, right) => left.address - right.address);
+		.flatMap(registerRange);
+	if (!ranges.length) return [];
 
-	return orderedRegisters.flatMap((register, index) => {
-		const nextRegister = orderedRegisters[index + 1];
-		const stride = registerByteWidth(register.width);
-		const nextAddress = nextRegister?.address;
-		if (nextAddress === undefined || nextAddress <= register.address + stride) return [];
+	return [
+		{
+			address: Math.min(...ranges.map((range) => range.address)),
+			endAddress: Math.max(...ranges.map((range) => range.endAddress)),
+		},
+	];
+}
 
-		const reservedAddress = register.address + stride;
+function registerRange(register: { address: number | null; width?: number }): AddressRange[] {
+	if (!Number.isFinite(register.address) || Number(register.address) < 0) return [];
+	const address = Number(register.address);
+	return [{ address, endAddress: address + registerByteWidth(register.width) - 1 }];
+}
+
+function buildReservedAddressRanges(ranges: AddressRange[]) {
+	const occupied = mergeAddressRanges(ranges);
+
+	return occupied.flatMap((range, index) => {
+		const nextRange = occupied[index + 1];
+		if (!nextRange || nextRange.address <= range.endAddress + 1) return [];
+
+		const address = range.endAddress + 1;
+		const endAddress = nextRange.address - 1;
 		return [
 			{
-				kind: 'reserved',
-				id: `reserved-${reservedAddress.toString(16)}`,
-				address: reservedAddress,
+				kind: 'reserved' as const,
+				id: `reserved-${address.toString(16)}-${endAddress.toString(16)}`,
+				address,
+				endAddress,
 			},
 		];
 	});
 }
 
-export function registerByteWidth(width = 8) {
-	return Math.max(1, Math.ceil(width / 8));
+function mergeAddressRanges(ranges: AddressRange[]) {
+	return [...ranges]
+		.sort((left, right) => left.address - right.address || left.endAddress - right.endAddress)
+		.reduce<AddressRange[]>((merged, range) => {
+			const previous = merged.at(-1);
+			if (!previous || range.address > previous.endAddress + 1) {
+				merged.push({ ...range });
+				return merged;
+			}
+
+			previous.endAddress = Math.max(previous.endAddress, range.endAddress);
+			return merged;
+		}, []);
 }
 
 function compareFolderChildren(left: FolderChild, right: FolderChild) {

@@ -161,7 +161,7 @@ describe('RDL domain helpers', () => {
 		const status = createTestRegister({ id: 'status', address: 0x04 });
 
 		expect(buildReservedAddressChildren([control, status])).toEqual([
-			{ kind: 'reserved', id: 'reserved-1', address: 1 },
+			{ kind: 'reserved', id: 'reserved-1-3', address: 1, endAddress: 3 },
 		]);
 		expect(buildFolderChildren('', [], [status, control]).map((child) => child.kind)).toEqual([
 			'register',
@@ -175,7 +175,7 @@ describe('RDL domain helpers', () => {
 		const status = createTestRegister({ id: 'status', address: 0x0c, width: 32 });
 
 		expect(buildReservedAddressChildren([control, status])).toEqual([
-			{ kind: 'reserved', id: 'reserved-4', address: 4 },
+			{ kind: 'reserved', id: 'reserved-4-b', address: 4, endAddress: 0x0b },
 		]);
 	});
 
@@ -190,7 +190,7 @@ describe('RDL domain helpers', () => {
 		).toEqual(['register', 'reserved', 'folder', 'reserved', 'register']);
 	});
 
-	it('does not reserve addresses occupied by registers inside direct child folders', () => {
+	it('collapses child folder internal gaps at the parent level', () => {
 		const moduleId = createTestRegister({
 			id: 'module-id',
 			address: 0x00,
@@ -216,7 +216,37 @@ describe('RDL domain helpers', () => {
 			address: 0x04,
 			group: 'Control Registers/System Control',
 		});
-		const registers = [moduleId, major, minor, revision, control];
+		const los = createTestRegister({
+			id: 'los',
+			address: 0x06,
+			group: 'Control Registers/System Control',
+		});
+		const sdiInput = createTestRegister({
+			id: 'sdi-input',
+			address: 0x08,
+			group: 'Control Registers/SDI Input 1 Control',
+		});
+		const componentLsbs = createTestRegister({
+			id: 'component-lsbs',
+			address: 0x56,
+			group: 'Control Registers/Test Signal Generator 1 Control',
+		});
+		const status = createTestRegister({
+			id: 'status',
+			address: 0x60,
+			group: 'Status Registers/FPGA Status',
+		});
+		const registers = [
+			moduleId,
+			major,
+			minor,
+			revision,
+			control,
+			los,
+			sdiInput,
+			componentLsbs,
+			status,
+		];
 		const groups = normalizeHierarchyGroups([], registers);
 
 		expect(buildFolderChildren('', groups, registers)).toEqual([
@@ -233,6 +263,14 @@ describe('RDL domain helpers', () => {
 				path: 'Control Registers',
 				label: 'Control Registers',
 				address: 4,
+			},
+			{ kind: 'reserved', id: 'reserved-57-5f', address: 0x57, endAddress: 0x5f },
+			{
+				kind: 'folder',
+				id: 'group-status-registers',
+				path: 'Status Registers',
+				label: 'Status Registers',
+				address: 0x60,
 			},
 		]);
 	});
