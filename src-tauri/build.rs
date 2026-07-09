@@ -1,7 +1,11 @@
 fn main() {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set");
     let target = std::env::var("TARGET").expect("TARGET is set");
-    let extension = if target.contains("windows") { ".exe" } else { "" };
+    let extension = if target.contains("windows") {
+        ".exe"
+    } else {
+        ""
+    };
     let parser_path = std::path::Path::new(&manifest_dir)
         .join("binaries")
         .join(format!("rdl-parser-{target}{extension}"));

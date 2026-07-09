@@ -2,10 +2,12 @@
 	import { onMount } from 'svelte';
 	import AppHotkeys from '$lib/components/app/AppHotkeys.svelte';
 	import AppMenubar from '$lib/components/app/AppMenubar.svelte';
+	import DiagnosticLogsDialog from '$lib/components/app/DiagnosticLogsDialog.svelte';
 	import EditorShell from '$lib/components/app/EditorShell.svelte';
 	import UnsavedChangesDialog from '$lib/components/app/UnsavedChangesDialog.svelte';
 	import WelcomeScreen from '$lib/components/app/WelcomeScreen.svelte';
 	import '$lib/desktop-api';
+	import { diagnostics } from '$lib/state/diagnostics.svelte';
 	import { editor } from '$lib/state/editor.svelte';
 
 	function handleBeforeUnload(event: BeforeUnloadEvent) {
@@ -19,7 +21,11 @@
 		void editor.syncWindowState();
 
 		const removeMenuListener = editor.subscribeMenuCommands();
-		return () => removeMenuListener?.();
+		const removeDiagnosticsListeners = diagnostics.installGlobalHandlers();
+		return () => {
+			removeMenuListener?.();
+			removeDiagnosticsListeners();
+		};
 	});
 </script>
 
@@ -45,3 +51,4 @@
 </div>
 
 <UnsavedChangesDialog />
+<DiagnosticLogsDialog />

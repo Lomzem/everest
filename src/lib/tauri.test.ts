@@ -47,4 +47,43 @@ describe('createTauriDesktopApi', () => {
 		});
 		expect(result).toEqual({ path: String.raw`C:\Users\lawjay\Documents\copy.rdl` });
 	});
+
+	it('appends diagnostics using the native diagnostics command', async () => {
+		invoke.mockResolvedValue(undefined);
+		const { createTauriDesktopApi } = await import('./tauri');
+		const api = createTauriDesktopApi();
+		const entry = {
+			version: 1,
+			timestamp: '2026-07-09T00:00:00.000Z',
+			level: 'error',
+			source: 'test',
+			message: 'boom',
+		} as const;
+
+		await api?.appendDiagnosticLog(entry);
+
+		expect(invoke).toHaveBeenCalledWith('append_diagnostic_log', { entry });
+	});
+
+	it('reads diagnostics using the native diagnostics command', async () => {
+		invoke.mockResolvedValue({ path: '/tmp/everest.log', content: '' });
+		const { createTauriDesktopApi } = await import('./tauri');
+		const api = createTauriDesktopApi();
+
+		const result = await api?.readDiagnosticLogs();
+
+		expect(invoke).toHaveBeenCalledWith('read_diagnostic_logs');
+		expect(result).toEqual({ path: '/tmp/everest.log', content: '' });
+	});
+
+	it('clears diagnostics using the native diagnostics command', async () => {
+		invoke.mockResolvedValue({ path: '/tmp/everest.log', content: '' });
+		const { createTauriDesktopApi } = await import('./tauri');
+		const api = createTauriDesktopApi();
+
+		const result = await api?.clearDiagnosticLogs();
+
+		expect(invoke).toHaveBeenCalledWith('clear_diagnostic_logs');
+		expect(result).toEqual({ path: '/tmp/everest.log', content: '' });
+	});
 });

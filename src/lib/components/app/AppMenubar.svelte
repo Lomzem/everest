@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Menubar from '$lib/components/ui/menubar';
+	import { diagnostics } from '$lib/state/diagnostics.svelte';
 	import { editor } from '$lib/state/editor.svelte';
 </script>
 
@@ -51,6 +52,15 @@
 				<Menubar.Item class="text-base" disabled={!editor.canRedo} onclick={() => editor.redo()}>
 					Redo
 					<Menubar.Shortcut class="text-base tracking-normal">Ctrl+Y</Menubar.Shortcut>
+				</Menubar.Item>
+			</Menubar.Content>
+		</Menubar.Menu>
+
+		<Menubar.Menu>
+			<Menubar.Trigger class="text-base">Help</Menubar.Trigger>
+			<Menubar.Content align="start" class="min-w-44">
+				<Menubar.Item class="text-base" onclick={() => diagnostics.showLogs()}>
+					Show logs
 				</Menubar.Item>
 			</Menubar.Content>
 		</Menubar.Menu>

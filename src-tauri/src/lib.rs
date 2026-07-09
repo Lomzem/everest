@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::{
     collections::hash_map::DefaultHasher,
-    fs,
+    fs::{self, OpenOptions},
     hash::{Hash, Hasher},
+    io::Write,
     path::{Path, PathBuf},
     process::Command,
     sync::Mutex,
@@ -29,6 +30,13 @@ struct SaveResult {
 struct ParsedRdlFile {
     path: String,
     document: serde_json::Value,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DiagnosticLogResult {
+    path: String,
+    content: String,
 }
 
 fn ensure_rdl_extension(file_path: &str) -> String {
@@ -92,6 +100,27 @@ fn write_rdl_file(path: impl AsRef<Path>, content: impl AsRef<[u8]>) -> Result<(
             path = path.display()
         )
     })
+}
+
+fn diagnostics_log_path(app: &AppHandle) -> Result<PathBuf, String> {
+    Ok(app
+        .path()
+        .app_data_dir()
+        .map_err(|error| format!("Failed to resolve app data directory: {error}"))?
+        .join("diagnostics")
+        .join("everest.log"))
+}
+
+fn ensure_parent_dir(path: &Path) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| {
+            format!(
+                "Failed to create diagnostics directory at {path}: {error}",
+                path = parent.display()
+            )
+        })?;
+    }
+    Ok(())
 }
 
 fn parser_cache_key() -> u64 {
@@ -269,6 +298,67 @@ async fn set_window_title(window: WebviewWindow, title: String) -> Result<(), St
 }
 
 #[tauri::command]
+async fn append_diagnostic_log(app: AppHandle, entry: serde_json::Value) -> Result<(), String> {
+    let path = diagnostics_log_path(&app)?;
+    ensure_parent_dir(&path)?;
+    let line = serde_json::to_string(&entry)
+        .map_err(|error| format!("Failed to encode diagnostics entry: {error}"))?;
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .map_err(|error| {
+            format!(
+                "Failed to open diagnostics log at {path}: {error}",
+                path = path.display()
+            )
+        })?;
+    writeln!(file, "{line}").map_err(|error| {
+        format!(
+            "Failed to write diagnostics log at {path}: {error}",
+            path = path.display()
+        )
+    })
+}
+
+#[tauri::command]
+async fn read_diagnostic_logs(app: AppHandle) -> Result<DiagnosticLogResult, String> {
+    let path = diagnostics_log_path(&app)?;
+    let content = match fs::read_to_string(&path) {
+        Ok(content) => content,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(error) => {
+            return Err(format!(
+                "Failed to read diagnostics log at {path}: {error}",
+                path = path.display()
+            ));
+        }
+    };
+
+    Ok(DiagnosticLogResult {
+        path: path.to_string_lossy().into_owned(),
+        content,
+    })
+}
+
+#[tauri::command]
+async fn clear_diagnostic_logs(app: AppHandle) -> Result<DiagnosticLogResult, String> {
+    let path = diagnostics_log_path(&app)?;
+    ensure_parent_dir(&path)?;
+    fs::write(&path, "").map_err(|error| {
+        format!(
+            "Failed to clear diagnostics log at {path}: {error}",
+            path = path.display()
+        )
+    })?;
+
+    Ok(DiagnosticLogResult {
+        path: path.to_string_lossy().into_owned(),
+        content: String::new(),
+    })
+}
+
+#[tauri::command]
 async fn quit_application(app: AppHandle) -> Result<(), String> {
     app.exit(0);
     Ok(())
@@ -301,6 +391,9 @@ pub fn run() {
             save_rdl_file_as,
             set_document_edited,
             set_window_title,
+            append_diagnostic_log,
+            read_diagnostic_logs,
+            clear_diagnostic_logs,
             quit_application,
         ])
         .on_window_event(handle_window_event)
@@ -365,5 +458,4 @@ mod tests {
     fn ensure_rdl_extension_keeps_existing_extension() {
         assert_eq!(ensure_rdl_extension("/tmp/top.rdl"), "/tmp/top.rdl");
     }
-
 }

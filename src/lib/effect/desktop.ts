@@ -1,5 +1,10 @@
 import { Context, Data, Effect, Layer } from 'effect';
-import type { DesktopApi, RdlFileResult } from '$lib/desktop-api';
+import type {
+	DesktopApi,
+	DiagnosticLogEntry,
+	DiagnosticLogResult,
+	RdlFileResult,
+} from '$lib/desktop-api';
 import { createTauriDesktopApi } from '$lib/tauri';
 
 export class DesktopUnavailable extends Data.TaggedError('DesktopUnavailable')<{
@@ -26,6 +31,9 @@ export interface DesktopBridgeService {
 	) => Effect.Effect<{ path: string } | null, DesktopError>;
 	readonly setDocumentEdited: (edited: boolean) => Effect.Effect<void, DesktopError>;
 	readonly setWindowTitle: (title: string) => Effect.Effect<void, DesktopError>;
+	readonly appendDiagnosticLog: (entry: DiagnosticLogEntry) => Effect.Effect<void, DesktopError>;
+	readonly readDiagnosticLogs: Effect.Effect<DiagnosticLogResult, DesktopError>;
+	readonly clearDiagnosticLogs: Effect.Effect<DiagnosticLogResult, DesktopError>;
 	readonly quitApplication: Effect.Effect<void, DesktopError>;
 }
 
@@ -77,6 +85,12 @@ export const DesktopBridgeLive = Layer.succeed(DesktopBridge, {
 		optionalInvoke('setDocumentEdited', (desktopApi) => desktopApi.setDocumentEdited(edited)),
 	setWindowTitle: (title) =>
 		optionalInvoke('setWindowTitle', (desktopApi) => desktopApi.setWindowTitle(title)),
+	appendDiagnosticLog: (entry) =>
+		invoke('appendDiagnosticLog', (desktopApi) => desktopApi.appendDiagnosticLog(entry)),
+	readDiagnosticLogs: invoke('readDiagnosticLogs', (desktopApi) => desktopApi.readDiagnosticLogs()),
+	clearDiagnosticLogs: invoke('clearDiagnosticLogs', (desktopApi) =>
+		desktopApi.clearDiagnosticLogs(),
+	),
 	quitApplication: optionalInvoke('quitApplication', (desktopApi) =>
 		desktopApi.quitApplication ? desktopApi.quitApplication() : Promise.resolve(),
 	),

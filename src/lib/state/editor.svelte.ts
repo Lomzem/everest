@@ -47,6 +47,7 @@ import {
 	updateRegister as updateRegisterInRegisters,
 } from '$lib/rdl/mutations';
 import { searchRegisters } from '$lib/rdl/search';
+import { diagnostics } from './diagnostics.svelte';
 import { ui } from './ui.svelte';
 import {
 	readPersistedEditorSession,
@@ -471,6 +472,7 @@ export class EditorState {
 	}
 
 	alertError(error: unknown) {
+		void diagnostics.recordError('editor.error', error);
 		globalThis.window.alert(effectErrorMessage(error));
 	}
 

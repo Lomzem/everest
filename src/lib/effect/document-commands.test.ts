@@ -19,6 +19,9 @@ function desktopMock(overrides: Partial<DesktopBridgeService> = {}): DesktopBrid
 		saveRdlFileAs: () => Effect.fail(new DesktopUnavailable({ operation: 'saveRdlFileAs' })),
 		setDocumentEdited: () => Effect.void,
 		setWindowTitle: () => Effect.void,
+		appendDiagnosticLog: () => Effect.void,
+		readDiagnosticLogs: Effect.succeed({ path: '', content: '' }),
+		clearDiagnosticLogs: Effect.succeed({ path: '', content: '' }),
 		quitApplication: Effect.void,
 		...overrides,
 	};
