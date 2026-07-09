@@ -14,6 +14,9 @@ export function effectErrorMessage(error: unknown) {
 			return String(error.message);
 		}
 		if (tag === 'DocumentValidationFailed') return 'The RDL document shape is invalid.';
+		if (tag === 'RdlParseFailed' && 'message' in error) {
+			return String(error.message);
+		}
 		if (tag === 'DesktopOperationFailed' && 'cause' in error) {
 			const cause = error.cause;
 			return cause instanceof Error ? cause.message : String(cause);

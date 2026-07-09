@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from systemrdl import RDLCompiler
+from systemrdl.messages import RDLCompileError
 from systemrdl.node import AddrmapNode, RegNode
 
 BIT_COLORS = [
@@ -319,9 +320,13 @@ def parse(path, text):
 def main():
     path = Path(sys.argv[1]).resolve()
     text = path.read_text(encoding="utf-8")
+    try:
+        document = parse(str(path), text)
+    except RDLCompileError:
+        sys.exit(1)
     result = {
         "path": str(path),
-        "document": parse(str(path), text),
+        "document": document,
     }
     print(json.dumps(result))
 

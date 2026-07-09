@@ -4,6 +4,7 @@
 	import AppMenubar from '$lib/components/app/AppMenubar.svelte';
 	import DiagnosticLogsDialog from '$lib/components/app/DiagnosticLogsDialog.svelte';
 	import EditorShell from '$lib/components/app/EditorShell.svelte';
+	import RdlParseErrorDialog from '$lib/components/app/RdlParseErrorDialog.svelte';
 	import UnsavedChangesDialog from '$lib/components/app/UnsavedChangesDialog.svelte';
 	import WelcomeScreen from '$lib/components/app/WelcomeScreen.svelte';
 	import '$lib/desktop-api';
@@ -51,4 +52,5 @@
 </div>
 
 <UnsavedChangesDialog />
+<RdlParseErrorDialog />
 <DiagnosticLogsDialog />

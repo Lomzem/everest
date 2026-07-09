@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { Effect, Layer } from 'effect';
 import { createBlankDocument, createDefaultField, type RdlDocument } from '$lib/rdl/model';
-import { DesktopBridge, DesktopUnavailable, type DesktopBridgeService } from './desktop';
+import {
+	DesktopBridge,
+	DesktopUnavailable,
+	RdlParseFailed,
+	type DesktopBridgeService,
+} from './desktop';
 import { openDocument, saveDocument } from './document-commands';
 
 const runWithDesktop = <A, E>(
@@ -173,6 +178,38 @@ describe('document command effects', () => {
 
 		expect(result._tag).toBe('Left');
 		expect(calls).toEqual([]);
+	});
+
+	it('preserves structured RDL parse failures when opening documents', async () => {
+		const parseError = new RdlParseFailed({
+			kind: 'rdlParseError',
+			path: '/tmp/bad.rdl',
+			message: "extraneous input '}' expecting ';'",
+			line: 3,
+			column: 1,
+			snippet: '};\n^',
+			details: "bad.rdl:3:1: error: extraneous input '}' expecting ';'",
+		});
+		const result = await Effect.runPromise(
+			Effect.either(
+				openDocument().pipe(
+					Effect.provide(
+						Layer.succeed(
+							DesktopBridge,
+							desktopMock({
+								openRdlFile: Effect.fail(parseError),
+							}),
+						),
+					),
+				),
+			),
+		);
+
+		expect(result._tag).toBe('Left');
+		if (result._tag === 'Left') {
+			expect(result.left).toBe(parseError);
+			expect(result.left.message).toBe("extraneous input '}' expecting ';'");
+		}
 	});
 
 	it('saves normalized documents with newly inserted register, field, and enum content', async () => {

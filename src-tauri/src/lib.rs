@@ -34,6 +34,26 @@ struct ParsedRdlFile {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+struct RdlParseError {
+    kind: &'static str,
+    path: String,
+    message: String,
+    line: Option<u32>,
+    column: Option<u32>,
+    snippet: Option<String>,
+    details: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(untagged)]
+enum OpenRdlFileError {
+    RdlParse(RdlParseError),
+    Message(String),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct DiagnosticLogResult {
     path: String,
     content: String,
@@ -167,7 +187,71 @@ fn parser_sidecar_path() -> Result<PathBuf, String> {
     Ok(parser_path)
 }
 
-fn run_parser_sidecar(parser_path: &Path, file_path: &str) -> Result<Vec<u8>, String> {
+fn parse_rdl_stderr(file_path: &str, stderr: &str) -> RdlParseError {
+    let trimmed = stderr.trim();
+    let mut message = "Failed to parse RDL file.".to_string();
+    let mut line = None;
+    let mut column = None;
+    let mut snippet = None;
+
+    let lines: Vec<&str> = trimmed.lines().collect();
+    for (index, text) in lines.iter().enumerate() {
+        let Some(rest) = text.strip_prefix(file_path) else {
+            continue;
+        };
+        let Some(rest) = rest.strip_prefix(':') else {
+            continue;
+        };
+        let mut parts = rest.splitn(4, ':');
+        let parsed_line = parts.next().and_then(|value| value.parse::<u32>().ok());
+        let parsed_column = parts.next().and_then(|value| value.parse::<u32>().ok());
+        let severity = parts.next().map(str::trim);
+        let parsed_message = parts.next().map(str::trim);
+
+        if !matches!(severity, Some("error" | "fatal")) {
+            continue;
+        }
+
+        line = parsed_line;
+        column = parsed_column;
+        if let Some(parsed_message) = parsed_message {
+            if !parsed_message.is_empty() {
+                message = parsed_message.to_string();
+            }
+        }
+
+        if let Some(source_line) = lines.get(index + 1) {
+            let mut snippet_lines = vec![(*source_line).to_string()];
+            if let Some(caret_line) = lines.get(index + 2) {
+                if caret_line.trim_start().starts_with('^') {
+                    snippet_lines.push((*caret_line).to_string());
+                }
+            }
+            snippet = Some(snippet_lines.join("\n"));
+        }
+        break;
+    }
+
+    if message == "Failed to parse RDL file." && !trimmed.is_empty() {
+        message = trimmed.lines().next().unwrap_or(&message).to_string();
+    }
+
+    RdlParseError {
+        kind: "rdlParseError",
+        path: file_path.to_string(),
+        message,
+        line,
+        column,
+        snippet,
+        details: if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        },
+    }
+}
+
+fn run_parser_sidecar(parser_path: &Path, file_path: &str) -> Result<Vec<u8>, OpenRdlFileError> {
     let mut command = Command::new(parser_path);
     command.arg(file_path);
 
@@ -178,39 +262,44 @@ fn run_parser_sidecar(parser_path: &Path, file_path: &str) -> Result<Vec<u8>, St
         command.creation_flags(CREATE_NO_WINDOW);
     }
 
-    let output = command
-        .output()
-        .map_err(|error| format!("Failed to run RDL parser sidecar at {parser_path:?}: {error}"))?;
+    let output = command.output().map_err(|error| {
+        OpenRdlFileError::Message(format!(
+            "Failed to run RDL parser sidecar at {parser_path:?}: {error}"
+        ))
+    })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
         return Err(if stderr.is_empty() {
-            format!(
+            OpenRdlFileError::Message(format!(
                 "RDL parser sidecar at {parser_path:?} exited with {status}",
                 status = output.status
-            )
+            ))
         } else {
-            stderr
+            OpenRdlFileError::RdlParse(parse_rdl_stderr(file_path, &stderr))
         });
     }
 
     Ok(output.stdout)
 }
 
-async fn parse_rdl_file(file_path: String) -> Result<ParsedRdlFile, String> {
-    let parser_path = parser_sidecar_path()?;
+async fn parse_rdl_file(file_path: String) -> Result<ParsedRdlFile, OpenRdlFileError> {
+    let parser_path = parser_sidecar_path().map_err(OpenRdlFileError::Message)?;
     let stdout = tauri::async_runtime::spawn_blocking(move || {
         run_parser_sidecar(&parser_path, file_path.as_str())
     })
     .await
-    .map_err(|error| format!("Failed to join RDL parser task: {error}"))??;
+    .map_err(|error| {
+        OpenRdlFileError::Message(format!("Failed to join RDL parser task: {error}"))
+    })??;
 
-    serde_json::from_slice(&stdout)
-        .map_err(|error| format!("RDL parser returned invalid JSON: {error}"))
+    serde_json::from_slice(&stdout).map_err(|error| {
+        OpenRdlFileError::Message(format!("RDL parser returned invalid JSON: {error}"))
+    })
 }
 
 #[tauri::command]
-async fn open_rdl_file(app: AppHandle) -> Result<Option<ParsedRdlFile>, String> {
+async fn open_rdl_file(app: AppHandle) -> Result<Option<ParsedRdlFile>, OpenRdlFileError> {
     let file_path = app
         .dialog()
         .file()
@@ -221,7 +310,7 @@ async fn open_rdl_file(app: AppHandle) -> Result<Option<ParsedRdlFile>, String> 
         return Ok(None);
     };
 
-    let file_path = file_path_to_string(file_path)?;
+    let file_path = file_path_to_string(file_path).map_err(OpenRdlFileError::Message)?;
     parse_rdl_file(file_path).await.map(Some)
 }
 
@@ -457,5 +546,51 @@ mod tests {
     #[test]
     fn ensure_rdl_extension_keeps_existing_extension() {
         assert_eq!(ensure_rdl_extension("/tmp/top.rdl"), "/tmp/top.rdl");
+    }
+
+    #[test]
+    fn parse_rdl_stderr_extracts_location_message_and_snippet() {
+        let path = "/tmp/bad.rdl";
+        let error = parse_rdl_stderr(
+            path,
+            "/tmp/bad.rdl:3:1: error: extraneous input '}' expecting ';'\n};\n^\nfatal: Parse aborted due to previous errors",
+        );
+
+        assert_eq!(error.kind, "rdlParseError");
+        assert_eq!(error.path, path);
+        assert_eq!(error.message, "extraneous input '}' expecting ';'");
+        assert_eq!(error.line, Some(3));
+        assert_eq!(error.column, Some(1));
+        assert_eq!(error.snippet, Some("};\n^".to_string()));
+    }
+
+    #[test]
+    fn parse_rdl_stderr_extracts_fatal_location_message_and_snippet() {
+        let path = "/home/lomzem/foo.rdl";
+        let error = parse_rdl_stderr(
+            path,
+            "/home/lomzem/foo.rdl:9:2: fatal: Type 'efault' is not defined\n    efault regwidth = 8;\n    ^^^^^^",
+        );
+
+        assert_eq!(error.kind, "rdlParseError");
+        assert_eq!(error.path, path);
+        assert_eq!(error.message, "Type 'efault' is not defined");
+        assert_eq!(error.line, Some(9));
+        assert_eq!(error.column, Some(2));
+        assert_eq!(
+            error.snippet,
+            Some("    efault regwidth = 8;\n    ^^^^^^".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_rdl_stderr_falls_back_to_first_line_without_location() {
+        let error = parse_rdl_stderr("/tmp/bad.rdl", "fatal: Parse aborted");
+
+        assert_eq!(error.message, "fatal: Parse aborted");
+        assert_eq!(error.line, None);
+        assert_eq!(error.column, None);
+        assert_eq!(error.snippet, None);
+        assert_eq!(error.details, Some("fatal: Parse aborted".to_string()));
     }
 }

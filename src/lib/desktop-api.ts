@@ -17,6 +17,16 @@ export interface DiagnosticLogResult {
 	readonly content: string;
 }
 
+export interface RdlParseError {
+	readonly kind: 'rdlParseError';
+	readonly path: string;
+	readonly message: string;
+	readonly line?: number;
+	readonly column?: number;
+	readonly snippet?: string;
+	readonly details?: string;
+}
+
 export interface RdlFileResult {
 	readonly path: string;
 	readonly document: RdlDocument;

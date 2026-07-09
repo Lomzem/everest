@@ -8,7 +8,11 @@ import {
 	shouldIgnoreUnavailable,
 	syncWindowState,
 } from '$lib/effect/document-commands';
-import { subscribeMenuCommand } from '$lib/effect/desktop';
+import {
+	RdlParseFailed,
+	rdlParseFailureFromUnknown,
+	subscribeMenuCommand,
+} from '$lib/effect/desktop';
 import { effectErrorMessage, runAppEffect } from '$lib/effect/run';
 import {
 	accessOptions,
@@ -73,6 +77,8 @@ export class EditorState {
 	selectedRegisterId = $state('');
 	selectedGroupPath = $state('');
 	selectedFieldId = $state('');
+	parseError = $state<RdlParseFailed>();
+	parseErrorDialogOpen = $state(false);
 	undoStack = $state<HistoryEntry[]>([]);
 	redoStack = $state<HistoryEntry[]>([]);
 	private groupedEdit: GroupedEdit | undefined;
@@ -416,9 +422,30 @@ export class EditorState {
 			if (!result) return;
 			this.applyDocument(result.document, result.path, false);
 		} catch (error) {
+			const parseError = rdlParseFailureFromUnknown(error);
+			if (parseError) {
+				await this.showParseError(parseError);
+				return;
+			}
 			if (shouldIgnoreUnavailable(error)) return;
 			this.alertError(error);
 		}
+	}
+
+	closeParseError() {
+		this.parseErrorDialogOpen = false;
+		this.parseError = undefined;
+	}
+
+	async showParseError(error: RdlParseFailed) {
+		this.parseError = error;
+		this.parseErrorDialogOpen = true;
+		await diagnostics.recordError('editor.rdlParse', error);
+	}
+
+	async showParseErrorDiagnostics() {
+		this.closeParseError();
+		await diagnostics.showLogs();
 	}
 
 	async saveDocument(saveAs: boolean) {

@@ -159,13 +159,19 @@ function clearBrowserDiagnosticLogs(): Effect.Effect<
 
 function diagnosticMessage(error: unknown) {
 	if (error instanceof Error) return error.message || error.name;
-	if (typeof error === 'object' && error && '_tag' in error) return String(error._tag);
+	if (typeof error === 'object' && error && '_tag' in error) {
+		if ('message' in error && typeof error.message === 'string') return error.message;
+		return String(error._tag);
+	}
 	return String(error);
 }
 
 function diagnosticDetails(error: unknown) {
 	if (error instanceof Error) return truncate(error.stack ?? error.message);
 	if (typeof error === 'object' && error && '_tag' in error) {
+		if (error._tag === 'RdlParseFailed' && 'details' in error) {
+			return typeof error.details === 'string' ? truncate(error.details) : undefined;
+		}
 		const cause = 'cause' in error ? error.cause : undefined;
 		if (cause instanceof Error) return truncate(cause.stack ?? cause.message);
 		if (cause !== undefined) return truncate(String(cause));

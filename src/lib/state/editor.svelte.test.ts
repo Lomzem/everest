@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { DesktopApi } from '$lib/desktop-api';
+import { RdlParseFailed } from '$lib/effect/desktop';
 import type { RdlDocument } from '$lib/rdl/model';
 import { registerAddressErrors } from '$lib/rdl/validation';
 import { EditorState } from './editor.svelte';
@@ -454,6 +456,63 @@ describe('EditorState derived names', () => {
 		expect(state.pendingDestructiveAction).toBeUndefined();
 		expect(state.dirty).toBe(false);
 		expect(state.document.registers).toHaveLength(0);
+	});
+
+	it('opens parse error dialog state for explicit parse failures', async () => {
+		const state = new EditorState();
+		const error = new RdlParseFailed({
+			kind: 'rdlParseError',
+			path: '/home/lomzem/foo.rdl',
+			message: "Type 'efault' is not defined",
+			line: 9,
+			column: 2,
+			snippet: '    efault regwidth = 8;\n    ^^^^^^',
+		});
+
+		await state.showParseError(error);
+
+		expect(state.parseError).toBe(error);
+		expect(state.parseErrorDialogOpen).toBe(true);
+
+		state.closeParseError();
+
+		expect(state.parseError).toBeUndefined();
+		expect(state.parseErrorDialogOpen).toBe(false);
+	});
+
+	it('opens parse error dialog state for raw SystemRDL fatal diagnostics', async () => {
+		const alert = vi.fn();
+		const appendDiagnosticLog = vi.fn(() => Promise.resolve());
+		Object.defineProperty(globalThis, 'window', {
+			configurable: true,
+			value: {
+				alert,
+				confirm: vi.fn(() => true),
+				localStorage: localStorageMock(),
+				everest: {
+					openRdlFile: vi
+						.fn()
+						.mockRejectedValue(
+							[
+								"/home/lomzem/foo.rdl:9:2: fatal: Type 'efault' is not defined",
+								'    efault regwidth = 8;',
+								'    ^^^^^^',
+							].join('\n'),
+						),
+					appendDiagnosticLog,
+				} as unknown as DesktopApi,
+			},
+		});
+		const state = new EditorState();
+
+		await state.openDocument();
+
+		expect(alert).not.toHaveBeenCalled();
+		expect(state.parseErrorDialogOpen).toBe(true);
+		expect(state.parseError?.path).toBe('/home/lomzem/foo.rdl');
+		expect(state.parseError?.line).toBe(9);
+		expect(state.parseError?.message).toBe("Type 'efault' is not defined");
+		expect(appendDiagnosticLog).toHaveBeenCalled();
 	});
 
 	it('runs a clean new document action without pending confirmation', () => {

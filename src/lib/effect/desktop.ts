@@ -3,6 +3,7 @@ import type {
 	DesktopApi,
 	DiagnosticLogEntry,
 	DiagnosticLogResult,
+	RdlParseError,
 	RdlFileResult,
 } from '$lib/desktop-api';
 import { createTauriDesktopApi } from '$lib/tauri';
@@ -16,7 +17,9 @@ export class DesktopOperationFailed extends Data.TaggedError('DesktopOperationFa
 	readonly cause: unknown;
 }> {}
 
-export type DesktopError = DesktopUnavailable | DesktopOperationFailed;
+export class RdlParseFailed extends Data.TaggedError('RdlParseFailed')<RdlParseError> {}
+
+export type DesktopError = DesktopUnavailable | DesktopOperationFailed | RdlParseFailed;
 
 export interface DesktopBridgeService {
 	readonly api: Effect.Effect<DesktopApi | undefined>;
@@ -51,12 +54,90 @@ const requiredApi = (operation: string) =>
 		),
 	);
 
+function isRdlParseError(cause: unknown): cause is RdlParseError {
+	return (
+		typeof cause === 'object' &&
+		cause !== null &&
+		'kind' in cause &&
+		cause.kind === 'rdlParseError' &&
+		'path' in cause &&
+		typeof cause.path === 'string' &&
+		'message' in cause &&
+		typeof cause.message === 'string'
+	);
+}
+
+function rdlParseErrorFromText(details: string): RdlParseError | undefined {
+	const lines = details.trim().split(/\r?\n/);
+	for (const [index, line] of lines.entries()) {
+		const match = /^(.+):(\d+):(\d+):\s+(?:error|fatal):\s+(.+)$/.exec(line);
+		if (!match) continue;
+
+		const snippetLines: string[] = [];
+		const sourceLine = lines[index + 1];
+		const caretLine = lines[index + 2];
+		if (sourceLine) snippetLines.push(sourceLine);
+		if (caretLine?.trimStart().startsWith('^')) snippetLines.push(caretLine);
+
+		return {
+			kind: 'rdlParseError',
+			path: match[1],
+			line: Number(match[2]),
+			column: Number(match[3]),
+			message: match[4],
+			snippet: snippetLines.length ? snippetLines.join('\n') : undefined,
+			details,
+		};
+	}
+	return undefined;
+}
+
+export function rdlParseFailureFromUnknown(error: unknown): RdlParseFailed | undefined {
+	if (error instanceof RdlParseFailed) return error;
+	if (isRdlParseError(error)) return new RdlParseFailed(error);
+	if (typeof error === 'string') {
+		const parsed = rdlParseErrorFromText(error);
+		return parsed ? new RdlParseFailed(parsed) : undefined;
+	}
+	if (typeof error !== 'object' || error === null) return undefined;
+
+	if ('_tag' in error && error._tag === 'RdlParseFailed' && isRdlParseError(error)) {
+		return new RdlParseFailed(error);
+	}
+
+	const fiberCause = Object.getOwnPropertySymbols(error)
+		.find((symbol) => String(symbol) === 'Symbol(effect/Runtime/FiberFailure/Cause)')
+		?.valueOf();
+	if (fiberCause) {
+		const cause = (error as Record<symbol, unknown>)[fiberCause];
+		if (typeof cause === 'object' && cause !== null && '_tag' in cause) {
+			if (cause._tag === 'Fail') {
+				const failure =
+					'failure' in cause ? cause.failure : 'error' in cause ? cause.error : undefined;
+				const parseError = rdlParseFailureFromUnknown(failure);
+				if (parseError) return parseError;
+			}
+		}
+	}
+
+	const cause = 'cause' in error ? error.cause : undefined;
+	return rdlParseFailureFromUnknown(cause);
+}
+
+function desktopOperationError(operation: string, cause: unknown): DesktopError {
+	if (operation === 'openRdlFile') {
+		const parseError = rdlParseFailureFromUnknown(cause);
+		if (parseError) return parseError;
+	}
+	return new DesktopOperationFailed({ operation, cause });
+}
+
 const invoke = <A>(operation: string, run: (desktopApi: DesktopApi) => Promise<A>) =>
 	requiredApi(operation).pipe(
 		Effect.flatMap((desktopApi) =>
 			Effect.tryPromise({
 				try: () => run(desktopApi),
-				catch: (cause) => new DesktopOperationFailed({ operation, cause }),
+				catch: (cause) => desktopOperationError(operation, cause),
 			}),
 		),
 	);
@@ -67,7 +148,7 @@ const optionalInvoke = <A>(operation: string, run: (desktopApi: DesktopApi) => P
 			if (!desktopApi) return Effect.void;
 			return Effect.tryPromise({
 				try: () => run(desktopApi),
-				catch: (cause) => new DesktopOperationFailed({ operation, cause }),
+				catch: (cause) => desktopOperationError(operation, cause),
 			});
 		}),
 	);
