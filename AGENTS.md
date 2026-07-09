@@ -10,6 +10,7 @@
 - Always try to do things with `Tailwind CSS` rather than vanilla CSS.
 - Minimum font size is 16px no matter what.
 - Always try to use `shadcn-svelte` components first before making your own.
+- A **top priority** of our app is (assuming input .rdl files are in a normalied state), edits to `.rdl` files with our app cause the smallest `git diff` possible.
 
 ## Completion Requirements
 
