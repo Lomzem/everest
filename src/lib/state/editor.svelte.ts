@@ -40,6 +40,7 @@ import { deriveIdentifier, fieldBitWidth, parseEditableValue, range } from '$lib
 import {
 	sortFieldEnumValues,
 	sortRegisterFields,
+	sortRegistersByAddress,
 	sortRegistersFields,
 	updateEnumValue as updateEnumValueInRegisters,
 	updateField as updateFieldInRegisters,
@@ -711,7 +712,10 @@ export class EditorState {
 			fields: [],
 		};
 
-		this.commitDocumentChange({ ...this.document, registers: [...this.document.registers, next] });
+		this.commitDocumentChange({
+			...this.document,
+			registers: sortRegistersByAddress([...this.document.registers, next]),
+		});
 		this.selectedRegisterId = next.id;
 		this.selectedKind = 'register';
 		this.selectedGroupPath = groupPath;
@@ -816,10 +820,8 @@ export class EditorState {
 		const nextChanges = this.registerChangesWithDerivedName(changes);
 		this.commitDocumentChange({
 			...this.document,
-			registers: updateRegisterInRegisters(
-				this.document.registers,
-				this.selectedRegister.id,
-				nextChanges,
+			registers: sortRegistersByAddress(
+				updateRegisterInRegisters(this.document.registers, this.selectedRegister.id, nextChanges),
 			),
 		});
 	}

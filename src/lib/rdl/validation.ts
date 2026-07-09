@@ -7,6 +7,7 @@ import {
 	type ValueMode,
 } from './model';
 import { fieldBitWidth, formatValue, maxValueForWidth } from './format';
+import { registerByteWidth } from './hierarchy';
 
 const identifierPattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -17,13 +18,14 @@ export function identifierErrors(value: string | undefined, label: string) {
 	return [`${label} can only contain letters, numbers, and underscores.`];
 }
 
-export type DocumentIdentifierIssueKind = 'register' | 'enum';
+export type DocumentIdentifierIssueKind = 'register' | 'enum' | 'address';
 
 export interface DocumentIdentifierIssue {
 	readonly kind: DocumentIdentifierIssueKind;
 	readonly identifier: string;
 	readonly ids: readonly string[];
 	readonly registerNames?: readonly string[];
+	readonly address?: number;
 	readonly message: string;
 }
 
@@ -48,6 +50,7 @@ export function documentIdentifierIssues(document: RdlDocument): DocumentIdentif
 					})),
 			),
 		),
+		...registerAddressIssues(document),
 	];
 }
 
@@ -56,6 +59,12 @@ export function registerIdentifierErrors(document: RdlDocument, register: Regist
 	if (!identifier) return [];
 	return documentIdentifierIssues(document)
 		.filter((issue) => issue.kind === 'register' && issue.identifier === identifier)
+		.map((issue) => issue.message);
+}
+
+export function registerAddressErrors(document: RdlDocument, register: Register) {
+	return documentIdentifierIssues(document)
+		.filter((issue) => issue.kind === 'address' && issue.ids.includes(register.id))
 		.map((issue) => issue.message);
 }
 
@@ -139,6 +148,57 @@ function duplicateEnumIssues(
 
 function duplicateEnumMessage(identifier: string, registerNames: readonly string[]) {
 	return `Duplicate enum identifier "${identifier}" also used in ${registerLabel(registerNames)}.`;
+}
+
+function registerAddressIssues(document: RdlDocument): DocumentIdentifierIssue[] {
+	const ranges = document.registers.map((register) => {
+		const start = normalizedAddress(register.address);
+		return {
+			register,
+			start,
+			end: start + registerByteWidth(register.width),
+		};
+	});
+	const issues: DocumentIdentifierIssue[] = [];
+
+	for (let leftIndex = 0; leftIndex < ranges.length; leftIndex += 1) {
+		const left = ranges[leftIndex];
+		for (let rightIndex = leftIndex + 1; rightIndex < ranges.length; rightIndex += 1) {
+			const right = ranges[rightIndex];
+			if (left.start >= right.end || right.start >= left.end) continue;
+
+			const address = Math.max(left.start, right.start);
+			issues.push({
+				kind: 'address',
+				identifier: formatValue(address, 'hex'),
+				address,
+				ids: [left.register.id, right.register.id],
+				message:
+					left.start === right.start
+						? `Duplicate register address ${formatValue(left.start, 'hex')} in addrmap "${document.addrmapName}".`
+						: `Register address range ${formatAddressRange(left.start, left.end)} overlaps ${registerDisplayName(right.register)} at ${formatAddressRange(right.start, right.end)}.`,
+			});
+		}
+	}
+
+	return issues;
+}
+
+function normalizedAddress(address: number) {
+	if (!Number.isFinite(address)) return 0;
+	return Math.max(0, Math.trunc(address));
+}
+
+function formatAddressRange(start: number, end: number) {
+	const last = end - 1;
+	return start === last
+		? formatValue(start, 'hex')
+		: `${formatValue(start, 'hex')}-${formatValue(last, 'hex')}`;
+}
+
+function registerDisplayName(register: Register) {
+	const label = register.name || register.title || register.id || 'register';
+	return `register "${label}"`;
 }
 
 function registerLabel(registerNames: readonly string[]) {

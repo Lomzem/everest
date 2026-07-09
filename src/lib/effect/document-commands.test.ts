@@ -112,7 +112,7 @@ describe('document command effects', () => {
 		expect(suggestedPaths).toEqual(['top.rdl']);
 	});
 
-	it('opens the Save As dialog even when document identifiers are duplicated', async () => {
+	it('rejects Save As when document identifiers are duplicated', async () => {
 		const calls: string[] = [];
 		const document: RdlDocument = {
 			...createBlankDocument(),
@@ -144,24 +144,32 @@ describe('document command effects', () => {
 			],
 		};
 
-		const result = await runWithDesktop(
-			saveDocument({
-				document,
-				currentPath: '/tmp/top.rdl',
-				saveAs: true,
-				suggestedPath: 'top.rdl',
-			}),
-			desktopMock({
-				saveRdlFileAs: () =>
-					Effect.sync(() => {
-						calls.push('write');
-						return { path: '/tmp/copy.rdl' };
-					}),
-			}),
+		const result = await Effect.runPromise(
+			Effect.either(
+				saveDocument({
+					document,
+					currentPath: '/tmp/top.rdl',
+					saveAs: true,
+					suggestedPath: 'top.rdl',
+				}).pipe(
+					Effect.provide(
+						Layer.succeed(
+							DesktopBridge,
+							desktopMock({
+								saveRdlFileAs: () =>
+									Effect.sync(() => {
+										calls.push('write');
+										return { path: '/tmp/copy.rdl' };
+									}),
+							}),
+						),
+					),
+				),
+			),
 		);
 
-		expect(calls).toEqual(['write']);
-		expect(result).toEqual({ path: '/tmp/copy.rdl', saved: true });
+		expect(result._tag).toBe('Left');
+		expect(calls).toEqual([]);
 	});
 
 	it('saves normalized documents with newly inserted register, field, and enum content', async () => {
@@ -239,7 +247,7 @@ describe('document command effects', () => {
 		expect(writes[0].content).toContain('reset = mock_e::ZERO;');
 	});
 
-	it('saves duplicate register identifiers instead of blocking the write', async () => {
+	it('rejects duplicate register identifiers instead of writing', async () => {
 		const writes: string[] = [];
 		const document: RdlDocument = {
 			...createBlankDocument(),
@@ -272,28 +280,34 @@ describe('document command effects', () => {
 			],
 		};
 
-		const result = await runWithDesktop(
-			saveDocument({
-				document,
-				currentPath: '/tmp/top.rdl',
-				saveAs: false,
-				suggestedPath: 'top.rdl',
-			}),
-			desktopMock({
-				saveRdlFile: (path, content) =>
-					Effect.sync(() => {
-						writes.push(`${path}:${content}`);
-					}),
-			}),
+		const result = await Effect.runPromise(
+			Effect.either(
+				saveDocument({
+					document,
+					currentPath: '/tmp/top.rdl',
+					saveAs: false,
+					suggestedPath: 'top.rdl',
+				}).pipe(
+					Effect.provide(
+						Layer.succeed(
+							DesktopBridge,
+							desktopMock({
+								saveRdlFile: (path, content) =>
+									Effect.sync(() => {
+										writes.push(`${path}:${content}`);
+									}),
+							}),
+						),
+					),
+				),
+			),
 		);
 
-		expect(result).toEqual({ path: '/tmp/top.rdl', saved: true });
-		expect(writes).toHaveLength(1);
-		expect(writes[0]).toContain('} control @ 0x0;');
-		expect(writes[0]).toContain('} control @ 0x1;');
+		expect(result._tag).toBe('Left');
+		expect(writes).toEqual([]);
 	});
 
-	it('saves duplicate enum identifiers instead of blocking the write', async () => {
+	it('rejects duplicate enum identifiers instead of writing', async () => {
 		const writes: string[] = [];
 		const document: RdlDocument = {
 			...createBlankDocument(),
@@ -356,24 +370,31 @@ describe('document command effects', () => {
 			],
 		};
 
-		const result = await runWithDesktop(
-			saveDocument({
-				document,
-				currentPath: '/tmp/top.rdl',
-				saveAs: false,
-				suggestedPath: 'top.rdl',
-			}),
-			desktopMock({
-				saveRdlFile: (path, content) =>
-					Effect.sync(() => {
-						writes.push(`${path}:${content}`);
-					}),
-			}),
+		const result = await Effect.runPromise(
+			Effect.either(
+				saveDocument({
+					document,
+					currentPath: '/tmp/top.rdl',
+					saveAs: false,
+					suggestedPath: 'top.rdl',
+				}).pipe(
+					Effect.provide(
+						Layer.succeed(
+							DesktopBridge,
+							desktopMock({
+								saveRdlFile: (path, content) =>
+									Effect.sync(() => {
+										writes.push(`${path}:${content}`);
+									}),
+							}),
+						),
+					),
+				),
+			),
 		);
 
-		expect(result).toEqual({ path: '/tmp/top.rdl', saved: true });
-		expect(writes).toHaveLength(1);
-		expect(writes[0].match(/enum mode_e/g)).toHaveLength(2);
+		expect(result._tag).toBe('Left');
+		expect(writes).toEqual([]);
 	});
 
 	it('opens parser documents without source metadata', async () => {
@@ -537,6 +558,64 @@ describe('document command effects', () => {
 		expect(saved[0]).toContain('addrmap source');
 		expect(saved[0]).toContain('} control @ 0x0;');
 		expect(saved[0]).not.toContain('field {} value[0:0]');
+	});
+
+	it('rejects saves with overlapping register addresses', async () => {
+		const document: RdlDocument = {
+			...createBlankDocument(),
+			registers: [
+				{
+					id: 'wide',
+					name: 'wide',
+					title: 'Wide',
+					desc: '',
+					address: 0,
+					width: 32,
+					group: '',
+					sw: 'RW',
+					hw: 'RW',
+					fields: [],
+				},
+				{
+					id: 'inside',
+					name: 'inside',
+					title: 'Inside',
+					desc: '',
+					address: 1,
+					width: 8,
+					group: '',
+					sw: 'RW',
+					hw: 'RW',
+					fields: [],
+				},
+			],
+		};
+		const saved: string[] = [];
+		const result = await Effect.runPromise(
+			Effect.either(
+				saveDocument({
+					document,
+					currentPath: '/tmp/source.rdl',
+					saveAs: false,
+					suggestedPath: 'source.rdl',
+				}).pipe(
+					Effect.provide(
+						Layer.succeed(
+							DesktopBridge,
+							desktopMock({
+								saveRdlFile: (path, content) =>
+									Effect.sync(() => {
+										saved.push(`${path}:${content}`);
+									}),
+							}),
+						),
+					),
+				),
+			),
+		);
+
+		expect(result._tag).toBe('Left');
+		expect(saved).toEqual([]);
 	});
 
 	it('saves edited imported documents with normalized output', async () => {

@@ -1,7 +1,11 @@
 import { Effect } from 'effect';
 import type { RdlDocument } from '$lib/rdl/model';
 import { exportRdlDocument } from '$lib/rdl/export';
-import { decodeRdlDocument, type DocumentValidationFailed } from '$lib/rdl/schema';
+import {
+	decodeRdlDocument,
+	validateRdlDocument,
+	type DocumentValidationFailed,
+} from '$lib/rdl/schema';
 import { DesktopBridge, DesktopUnavailable, type DesktopError } from './desktop';
 
 export interface LoadedDocument {
@@ -49,7 +53,9 @@ export function saveDocument(
 > {
 	return Effect.gen(function* () {
 		const desktop = yield* DesktopBridge;
-		const document = yield* decodeRdlDocument(options.document);
+		const document = yield* decodeRdlDocument(options.document).pipe(
+			Effect.flatMap(validateRdlDocument),
+		);
 		const content = exportRdlDocument(document);
 
 		if (!options.currentPath || options.saveAs) {

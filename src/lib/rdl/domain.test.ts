@@ -18,8 +18,8 @@ import {
 	normalizeHierarchyGroups,
 } from './hierarchy';
 import { createBlankDocument, createDefaultField, type Field, type Register } from './model';
-import { sortRegisterFields } from './mutations';
-import { decodeRdlDocument } from './schema';
+import { sortRegisterFields, sortRegistersByAddress } from './mutations';
+import { decodeRdlDocument, validateRdlDocument } from './schema';
 import {
 	bitRangeErrors,
 	documentIdentifierIssues,
@@ -28,6 +28,7 @@ import {
 	fieldOverlapErrors,
 	fieldOverlaps,
 	identifierErrors,
+	registerAddressErrors,
 	registerEnumIdentifierErrors,
 	registerIdentifierErrors,
 	resetErrors,
@@ -65,6 +66,10 @@ function withoutRegisterBlock(content: string, registerName: string) {
 	}
 
 	throw new Error(`Missing register block ${registerName}.`);
+}
+
+function registerBlockOrder(content: string) {
+	return [...content.matchAll(/^ {4}} ([A-Za-z_][A-Za-z0-9_]*) @ /gm)].map((match) => match[1]);
 }
 
 describe('RDL domain helpers', () => {
@@ -110,6 +115,18 @@ describe('RDL domain helpers', () => {
 			'high-field',
 			'middle-field',
 			'low-field',
+		]);
+	});
+
+	it('sorts registers by address while preserving duplicate-address order', () => {
+		const first = createTestRegister({ id: 'first', address: 4 });
+		const second = createTestRegister({ id: 'second', address: 0 });
+		const third = createTestRegister({ id: 'third', address: 4 });
+
+		expect(sortRegistersByAddress([first, second, third]).map((register) => register.id)).toEqual([
+			'second',
+			'first',
+			'third',
 		]);
 	});
 
@@ -171,6 +188,53 @@ describe('RDL domain helpers', () => {
 		expect(
 			buildFolderChildren('', groups, [status, nested, control]).map((child) => child.kind),
 		).toEqual(['register', 'reserved', 'folder', 'reserved', 'register']);
+	});
+
+	it('does not reserve addresses occupied by registers inside direct child folders', () => {
+		const moduleId = createTestRegister({
+			id: 'module-id',
+			address: 0x00,
+			group: 'Module ID and Version Registers',
+		});
+		const major = createTestRegister({
+			id: 'major',
+			address: 0x01,
+			group: 'Module ID and Version Registers',
+		});
+		const minor = createTestRegister({
+			id: 'minor',
+			address: 0x02,
+			group: 'Module ID and Version Registers',
+		});
+		const revision = createTestRegister({
+			id: 'revision',
+			address: 0x03,
+			group: 'Module ID and Version Registers',
+		});
+		const control = createTestRegister({
+			id: 'control',
+			address: 0x04,
+			group: 'Control Registers/System Control',
+		});
+		const registers = [moduleId, major, minor, revision, control];
+		const groups = normalizeHierarchyGroups([], registers);
+
+		expect(buildFolderChildren('', groups, registers)).toEqual([
+			{
+				kind: 'folder',
+				id: 'group-module-id-and-version-registers',
+				path: 'Module ID and Version Registers',
+				label: 'Module ID and Version Registers',
+				address: 0,
+			},
+			{
+				kind: 'folder',
+				id: 'group-control-registers',
+				path: 'Control Registers',
+				label: 'Control Registers',
+				address: 4,
+			},
+		]);
 	});
 
 	it('builds bit segments with reserved gaps', () => {
@@ -341,8 +405,13 @@ describe('RDL domain helpers', () => {
 			addrmapName: 'top',
 			registers: [
 				createTestRegister({ id: 'root-control', name: 'control', group: '' }),
-				createTestRegister({ id: 'nested-control', name: 'control', group: 'Nested/Video' }),
-				createTestRegister({ id: 'status', name: 'status', group: 'Nested' }),
+				createTestRegister({
+					id: 'nested-control',
+					name: 'control',
+					address: 1,
+					group: 'Nested/Video',
+				}),
+				createTestRegister({ id: 'status', name: 'status', address: 2, group: 'Nested' }),
 			],
 		};
 
@@ -388,11 +457,13 @@ describe('RDL domain helpers', () => {
 				createTestRegister({
 					id: 'status',
 					name: 'status',
+					address: 1,
 					fields: [statusField],
 				}),
 				createTestRegister({
 					id: 'mode-register',
 					name: 'mode_e',
+					address: 2,
 					fields: [{ ...createDefaultField('plain'), enumName: '', values: [] }],
 				}),
 			],
@@ -415,6 +486,54 @@ describe('RDL domain helpers', () => {
 			'Duplicate enum identifier "mode_e" also used in register "control".',
 		]);
 		expect(enumIdentifierErrors(document, emptyEnumNameField)).toEqual([]);
+	});
+
+	it('reports duplicate register addresses', () => {
+		const document = {
+			...createBlankDocument(),
+			addrmapName: 'top',
+			registers: [
+				createTestRegister({ id: 'control', name: 'control', address: 0 }),
+				createTestRegister({ id: 'status', name: 'status', address: 0 }),
+			],
+		};
+
+		expect(documentIdentifierIssues(document)).toContainEqual({
+			kind: 'address',
+			identifier: '0x0',
+			address: 0,
+			ids: ['control', 'status'],
+			message: 'Duplicate register address 0x0 in addrmap "top".',
+		});
+		expect(registerAddressErrors(document, document.registers[0])).toEqual([
+			'Duplicate register address 0x0 in addrmap "top".',
+		]);
+	});
+
+	it('reports overlapping register address ranges and allows adjacent ranges', async () => {
+		const overlapping = {
+			...createBlankDocument(),
+			registers: [
+				createTestRegister({ id: 'wide', name: 'wide', address: 0, width: 32 }),
+				createTestRegister({ id: 'inside', name: 'inside', address: 1, width: 8 }),
+			],
+		};
+		const adjacent = {
+			...createBlankDocument(),
+			registers: [
+				createTestRegister({ id: 'wide', name: 'wide', address: 0, width: 32 }),
+				createTestRegister({ id: 'next', name: 'next', address: 4, width: 8 }),
+			],
+		};
+
+		expect(registerAddressErrors(overlapping, overlapping.registers[0])).toEqual([
+			'Register address range 0x0-0x3 overlaps register "inside" at 0x1.',
+		]);
+		expect(registerAddressErrors(adjacent, adjacent.registers[0])).toEqual([]);
+
+		const invalid = await Effect.runPromise(Effect.either(validateRdlDocument(overlapping)));
+		expect(invalid._tag).toBe('Left');
+		await expect(Effect.runPromise(validateRdlDocument(adjacent))).resolves.toBe(adjacent);
 	});
 
 	it('exports selected enum reset values symbolically', () => {
@@ -455,6 +574,20 @@ describe('RDL domain helpers', () => {
 		expect(content).not.toContain('\t');
 	});
 
+	it('exports registers in ascending address order', () => {
+		const document = {
+			...createBlankDocument(),
+			addrmapName: 'top',
+			registers: [
+				createTestRegister({ id: 'control', name: 'control', address: 0 }),
+				createTestRegister({ id: 'last', name: 'last', address: 0xff }),
+				createTestRegister({ id: 'middle', name: 'middle', address: 1 }),
+			],
+		};
+
+		expect(registerBlockOrder(exportRdlDocument(document))).toEqual(['control', 'middle', 'last']);
+	});
+
 	it('keeps normalized diffs limited when inserting a register', () => {
 		const baseRegister = createTestRegister({
 			id: 'control',
@@ -488,6 +621,25 @@ describe('RDL domain helpers', () => {
 		};
 
 		expect(withoutRegisterBlock(exportRdlDocument(changedDocument), 'wide')).toBe(
+			exportRdlDocument(baseDocument),
+		);
+	});
+
+	it('keeps normalized diffs limited when inserting into an address gap', () => {
+		const control = createTestRegister({ id: 'control', name: 'control', address: 0 });
+		const last = createTestRegister({ id: 'last', name: 'last', address: 0xff });
+		const middle = createTestRegister({ id: 'middle', name: 'middle', address: 1 });
+		const baseDocument = {
+			...createBlankDocument(),
+			addrmapName: 'top',
+			registers: [control, last],
+		};
+		const changedDocument = {
+			...baseDocument,
+			registers: [control, last, middle],
+		};
+
+		expect(withoutRegisterBlock(exportRdlDocument(changedDocument), 'middle')).toBe(
 			exportRdlDocument(baseDocument),
 		);
 	});

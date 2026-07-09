@@ -4,6 +4,16 @@ export function sortRegisterFields(fields: Field[]) {
 	return [...fields].sort((a, b) => b.msb - a.msb);
 }
 
+export function sortRegistersByAddress(registers: Register[]) {
+	return registers
+		.map((register, index) => ({ register, index }))
+		.sort((left, right) => {
+			const addressDelta = left.register.address - right.register.address;
+			return addressDelta === 0 ? left.index - right.index : addressDelta;
+		})
+		.map(({ register }) => register);
+}
+
 export function sortRegistersFields(registers: Register[]) {
 	return registers.map((register) => ({
 		...register,

@@ -1,4 +1,5 @@
 import type { Access, Field, RdlDocument, Register } from './model';
+import { sortRegistersByAddress } from './mutations';
 
 const indent = '    ';
 const defaultRegisterWidth = 8;
@@ -18,7 +19,7 @@ export function exportRdlDocument(document: RdlDocument): string {
 		`${indent}default hw = rw;`,
 	];
 
-	for (const register of document.registers) {
+	for (const register of sortRegistersByAddress(document.registers)) {
 		lines.push(...exportRegister(register));
 	}
 

@@ -118,8 +118,16 @@ export function buildFolderChildren(
 	registers: Register[],
 ): FolderChild[] {
 	const hierarchyChildren = buildHierarchyChildren(groupPath, groups, registers);
-	return [...hierarchyChildren, ...buildReservedAddressChildren(hierarchyChildren)].sort(
-		compareFolderChildren,
+	return [
+		...hierarchyChildren,
+		...buildReservedAddressChildren(registersUnder(groupPath, registers)),
+	].sort(compareFolderChildren);
+}
+
+function registersUnder(groupPath: string, registers: Register[]) {
+	if (!groupPath) return registers;
+	return registers.filter(
+		(register) => register.group === groupPath || register.group.startsWith(`${groupPath}/`),
 	);
 }
 

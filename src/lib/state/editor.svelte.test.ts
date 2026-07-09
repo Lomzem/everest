@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RdlDocument } from '$lib/rdl/model';
+import { registerAddressErrors } from '$lib/rdl/validation';
 import { EditorState } from './editor.svelte';
 import { ui } from './ui.svelte';
 
@@ -62,7 +63,20 @@ describe('EditorState derived names', () => {
 		expect(state.selectedRegister.address).toBe(0x01);
 		expect(state.selectedRegister.group).toBe('');
 		expect(state.selectedKind).toBe('register');
-		expect(state.document.registers.map((register) => register.address)).toEqual([0, 0x04, 0x01]);
+		expect(state.document.registers.map((register) => register.address)).toEqual([0, 0x01, 0x04]);
+	});
+
+	it('reports address conflicts after editing a register address', async () => {
+		const state = new EditorState();
+		state.newDocument();
+		await state.addRegister('', 0);
+		await state.addRegister('', 1);
+
+		state.updateSelectedRegister({ address: 0 });
+
+		expect(registerAddressErrors(state.document, state.selectedRegister)).toEqual([
+			'Duplicate register address 0x0 in addrmap "untitled_addrmap".',
+		]);
 	});
 
 	it('appends default 8-bit registers at byte addresses', async () => {
