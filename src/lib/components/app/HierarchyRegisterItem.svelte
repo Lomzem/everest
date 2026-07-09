@@ -34,11 +34,11 @@
 					? 'border-b-2 border-b-blue-500'
 					: ''
 			}`}
-			draggable={!editor.structureReadOnly}
+			draggable={true}
 			ondragstart={(event) => ui.beginRegisterDrag(event, register.id)}
 			ondragend={() => ui.finishRegisterDrag()}
 			ondragover={(event) => {
-				if (!editor.structureReadOnly) ui.dragRegisterOverRegister(event, register.id);
+				ui.dragRegisterOverRegister(event, register.id);
 			}}
 			ondragleave={() => {
 				if (ui.dragOverRegisterId === register.id) {
@@ -47,7 +47,7 @@
 				}
 			}}
 			ondrop={(event) => {
-				if (!editor.structureReadOnly) editor.dropRegisterOnRegister(event, register);
+				editor.dropRegisterOnRegister(event, register);
 			}}
 			role="listitem"
 		>
@@ -98,7 +98,6 @@
 			</button>
 			<button
 				class="absolute right-1 top-1 inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 hover:bg-destructive/10 hover:text-destructive focus:opacity-100"
-				disabled={editor.structureReadOnly}
 				onclick={(event) => {
 					event.stopPropagation();
 					editor.deleteRegister(register.id);
@@ -110,18 +109,11 @@
 		</div>
 	</ContextMenu.Trigger>
 	<ContextMenu.Content class="w-36">
-		<ContextMenu.Item
-			disabled={!editor.canEditRegister(register.id, 'name')}
-			onSelect={() => editor.startRenameRegister(register.id)}
-		>
+		<ContextMenu.Item onSelect={() => editor.startRenameRegister(register.id)}>
 			<Edit3 size={14} />
 			Rename
 		</ContextMenu.Item>
-		<ContextMenu.Item
-			variant="destructive"
-			disabled={editor.structureReadOnly}
-			onSelect={() => editor.deleteRegister(register.id)}
-		>
+		<ContextMenu.Item variant="destructive" onSelect={() => editor.deleteRegister(register.id)}>
 			<Trash2 size={14} />
 			Delete
 		</ContextMenu.Item>

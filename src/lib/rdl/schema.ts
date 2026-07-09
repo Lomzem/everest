@@ -51,99 +51,6 @@ const HierarchyGroupSchema = Schema.Struct({
 	path: Schema.String,
 });
 
-const SourceRangeSchema = Schema.Struct({
-	start: Schema.Number,
-	end: Schema.Number,
-});
-
-const SourceStringTokenSchema = Schema.Struct({
-	range: SourceRangeSchema,
-	value: Schema.String,
-});
-
-const SourceNumberTokenSchema = Schema.Struct({
-	range: SourceRangeSchema,
-	value: Schema.Number,
-});
-
-const SourceResetValueSchema = Schema.Struct({
-	value: Schema.Number,
-	enumName: Schema.optional(Schema.String),
-	enumValueName: Schema.optional(Schema.String),
-});
-
-const SourceResetTokenSchema = Schema.Struct({
-	range: SourceRangeSchema,
-	value: SourceResetValueSchema,
-});
-
-const SourceAccessTokenSchema = Schema.Struct({
-	range: SourceRangeSchema,
-	value: AccessSchema,
-});
-
-const SourceBitRangeTokenSchema = Schema.Struct({
-	range: SourceRangeSchema,
-	value: Schema.Struct({
-		msb: Schema.Number,
-		lsb: Schema.Number,
-	}),
-});
-
-const EnumValueSourceEditRangesSchema = Schema.Struct({
-	fullRange: Schema.optional(SourceRangeSchema),
-	name: Schema.optional(SourceStringTokenSchema),
-	value: Schema.optional(SourceNumberTokenSchema),
-	desc: Schema.optional(SourceStringTokenSchema),
-});
-
-const FieldSourceEditRangesSchema = Schema.Struct({
-	fullRange: Schema.optional(SourceRangeSchema),
-	bodyEnd: Schema.optional(Schema.Number),
-	bodyIndent: Schema.optional(Schema.String),
-	enumRange: Schema.optional(SourceRangeSchema),
-	enumBodyEnd: Schema.optional(Schema.Number),
-	enumBodyIndent: Schema.optional(Schema.String),
-	name: Schema.optional(SourceStringTokenSchema),
-	title: Schema.optional(SourceStringTokenSchema),
-	desc: Schema.optional(SourceStringTokenSchema),
-	bitRange: Schema.optional(SourceBitRangeTokenSchema),
-	reset: Schema.optional(SourceResetTokenSchema),
-	sw: Schema.optional(SourceAccessTokenSchema),
-	hw: Schema.optional(SourceAccessTokenSchema),
-	enumName: Schema.optional(SourceStringTokenSchema),
-	values: Schema.Record({ key: Schema.String, value: EnumValueSourceEditRangesSchema }),
-});
-
-const RegisterSourceEditRangesSchema = Schema.Struct({
-	fullRange: Schema.optional(SourceRangeSchema),
-	bodyEnd: Schema.optional(Schema.Number),
-	bodyIndent: Schema.optional(Schema.String),
-	name: Schema.optional(SourceStringTokenSchema),
-	title: Schema.optional(SourceStringTokenSchema),
-	desc: Schema.optional(SourceStringTokenSchema),
-	address: Schema.optional(SourceNumberTokenSchema),
-	group: Schema.optional(SourceStringTokenSchema),
-	sw: Schema.optional(SourceAccessTokenSchema),
-	hw: Schema.optional(SourceAccessTokenSchema),
-	fields: Schema.Record({ key: Schema.String, value: FieldSourceEditRangesSchema }),
-});
-
-const RdlSourceEditRangesSchema = Schema.Struct({
-	addrmapName: Schema.optional(SourceStringTokenSchema),
-	addrmapBodyEnd: Schema.optional(Schema.Number),
-	addrmapIndent: Schema.optional(Schema.String),
-	registers: Schema.Record({ key: Schema.String, value: RegisterSourceEditRangesSchema }),
-});
-
-const RdlSourceDocumentSchema = Schema.Struct({
-	rootPath: Schema.String,
-	text: Schema.String,
-	readOnly: Schema.Boolean,
-	readOnlyReason: Schema.String,
-	editRanges: Schema.optional(RdlSourceEditRangesSchema),
-});
-
 export const RdlDocumentSchema = Schema.Struct({
 	deviceName: Schema.String,
 	blockName: Schema.String,
@@ -152,7 +59,6 @@ export const RdlDocumentSchema = Schema.Struct({
 	desc: Schema.String,
 	hierarchyGroups: Schema.Array(HierarchyGroupSchema),
 	registers: Schema.Array(RegisterSchema),
-	source: Schema.optional(RdlSourceDocumentSchema),
 });
 
 export function decodeRdlDocument(
@@ -161,7 +67,6 @@ export function decodeRdlDocument(
 	return Schema.decodeUnknown(RdlDocumentSchema)(input).pipe(
 		Effect.map((document) => ({
 			...document,
-			source: document.source ? { ...document.source } : undefined,
 			hierarchyGroups: document.hierarchyGroups.map((group) => ({ ...group })),
 			registers: document.registers.map((register) => ({
 				...register,

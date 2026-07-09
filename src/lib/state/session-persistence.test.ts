@@ -45,6 +45,41 @@ describe('editor session persistence', () => {
 		expect(window.localStorage.removeItem).toHaveBeenCalledWith('everest.editorSession');
 	});
 
+	it('strips legacy source metadata from persisted sessions', () => {
+		window.localStorage.setItem(
+			'everest.editorSession',
+			JSON.stringify({
+				version: 1,
+				savedAt: Date.now(),
+				appView: 'editor',
+				document: {
+					...createBlankDocument(),
+					source: {
+						rootPath: '/tmp/top.rdl',
+						text: 'addrmap top {};',
+						readOnly: true,
+						readOnlyReason: 'legacy source metadata',
+					},
+				},
+				currentPath: '/tmp/top.rdl',
+				dirty: false,
+				selection: {
+					selectedKind: 'folder',
+					selectedRegisterId: '',
+					selectedGroupPath: '',
+					selectedFieldId: '',
+				},
+				undoStack: [],
+				redoStack: [],
+			}),
+		);
+
+		const session = readPersistedEditorSession();
+
+		expect(session?.document.addrmapName).toBe('untitled_addrmap');
+		expect(Object.hasOwn(session?.document ?? {}, 'source')).toBe(false);
+	});
+
 	it('clears unsupported session versions', () => {
 		window.localStorage.setItem(
 			'everest.editorSession',

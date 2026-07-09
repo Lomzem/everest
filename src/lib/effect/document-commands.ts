@@ -2,7 +2,6 @@ import { Effect } from 'effect';
 import type { RdlDocument } from '$lib/rdl/model';
 import { exportRdlDocument } from '$lib/rdl/export';
 import { decodeRdlDocument, type DocumentValidationFailed } from '$lib/rdl/schema';
-import { prepareSourceBackedDocument, sourceContentFor } from '$lib/rdl/source-edits';
 import { DesktopBridge, DesktopUnavailable, type DesktopError } from './desktop';
 
 export interface LoadedDocument {
@@ -31,17 +30,9 @@ export function openDocument(): Effect.Effect<
 		const desktop = yield* DesktopBridge;
 		const result = yield* desktop.openRdlFile;
 		if (!result) return null;
-		const document = yield* decodeRdlDocument({
-			...result.document,
-			source: result.source ?? result.document.source,
-		});
-		return { path: result.path, document: prepareSourceBackedDocument(document) };
+		const document = yield* decodeRdlDocument(result.document);
+		return { path: result.path, document };
 	});
-}
-
-function saveContentFor(document: RdlDocument) {
-	if (document.source?.editRanges) return sourceContentFor(document);
-	return document.source?.text ?? exportRdlDocument(document);
 }
 
 function saveAsSuggestedPath(options: SaveDocumentOptions) {
@@ -59,7 +50,7 @@ export function saveDocument(
 	return Effect.gen(function* () {
 		const desktop = yield* DesktopBridge;
 		const document = yield* decodeRdlDocument(options.document);
-		const content = saveContentFor(document);
+		const content = exportRdlDocument(document);
 
 		if (!options.currentPath || options.saveAs) {
 			const result = yield* desktop.saveRdlFileAs(content, saveAsSuggestedPath(options));

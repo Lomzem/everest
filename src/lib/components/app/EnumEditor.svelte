@@ -60,7 +60,6 @@
 						data-enum-name-input={field.id}
 						placeholder={`${field.name}_e`}
 						value={field.enumName}
-						disabled={!editor.canEditField(field.id, 'enumName')}
 						title={enumNameErrors.join(' ')}
 						onfocus={() => editor.beginGroupedDocumentEdit()}
 						oninput={(event) => editor.updateField(field.id, { enumName: textInput(event) })}
@@ -82,7 +81,6 @@
 			</label>
 			<button
 				class="inline-flex h-8 items-center gap-2 rounded-md border border-border px-3 text-base font-medium text-primary hover:bg-muted"
-				disabled={editor.structureReadOnly}
 				onclick={addEncoding}
 			>
 				<Plus size={14} />
@@ -101,7 +99,6 @@
 							)}`}
 							data-enum-variant-name-input={`${field.id}:${value.id}`}
 							value={value.name}
-							disabled={!editor.canEditEnumValue(field.id, value.id, 'name')}
 							title={nameErrors.join(' ')}
 							onfocus={() => editor.beginGroupedDocumentEdit()}
 							oninput={(event) =>
@@ -146,7 +143,6 @@
 									inputmode={ui.valueMode === 'hex' ? 'text' : 'numeric'}
 									pattern={valueInputPattern(ui.valueMode)}
 									placeholder={formatEditableValue(value.value, ui.valueMode, fieldBitWidth(field))}
-									disabled={!editor.canEditEnumValue(field.id, value.id, 'value')}
 									value={ui.numericInputValue(
 										`enum:${field.id}:${value.id}`,
 										value.value,
@@ -187,7 +183,6 @@
 						class="h-8 rounded-md border border-input bg-background px-2 text-foreground outline-none focus:border-primary"
 						placeholder="Describe this encoding."
 						value={value.desc}
-						disabled={!editor.canEditEnumValue(field.id, value.id, 'desc')}
 						onfocus={() => editor.beginGroupedDocumentEdit()}
 						oninput={(event) =>
 							editor.updateEnumValue(field.id, value.id, { desc: textInput(event) })}
@@ -195,7 +190,6 @@
 					/>
 					<button
 						class="inline-flex size-8 items-center justify-center rounded-md border border-destructive/30 text-destructive hover:bg-destructive/10"
-						disabled={editor.structureReadOnly}
 						onclick={() => editor.removeEnumValue(field.id, value.id)}
 						title="Remove encoding"
 					>
@@ -207,7 +201,6 @@
 		<div class="mt-3 flex justify-center">
 			<button
 				class="inline-flex h-10 min-w-48 items-center justify-center gap-2 rounded-md border border-border px-4 text-base font-medium text-primary hover:bg-muted"
-				disabled={editor.structureReadOnly}
 				onclick={addEncoding}
 			>
 				<Plus size={14} />
@@ -218,7 +211,6 @@
 {:else}
 	<button
 		class="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-base font-medium text-primary hover:bg-muted"
-		disabled={editor.structureReadOnly}
 		onclick={addEncoding}
 	>
 		<Braces size={15} />

@@ -51,14 +51,6 @@ export interface HierarchyGroup {
 	path: string;
 }
 
-export interface RdlSourceDocument {
-	rootPath: string;
-	text: string;
-	readOnly: boolean;
-	readOnlyReason: string;
-	editRanges?: RdlSourceEditRanges;
-}
-
 export interface RdlDocument {
 	deviceName: string;
 	blockName: string;
@@ -67,69 +59,6 @@ export interface RdlDocument {
 	desc: string;
 	hierarchyGroups: HierarchyGroup[];
 	registers: Register[];
-	source?: RdlSourceDocument;
-}
-
-export interface SourceRange {
-	start: number;
-	end: number;
-}
-
-export interface SourceToken<T> {
-	range: SourceRange;
-	value: T;
-}
-
-export interface ResetSourceValue {
-	value: number;
-	enumName?: string;
-	enumValueName?: string;
-}
-
-export interface RdlSourceEditRanges {
-	addrmapName?: SourceToken<string>;
-	addrmapBodyEnd?: number;
-	addrmapIndent?: string;
-	registers: Record<string, RegisterSourceEditRanges>;
-}
-
-export interface RegisterSourceEditRanges {
-	fullRange?: SourceRange;
-	bodyEnd?: number;
-	bodyIndent?: string;
-	name?: SourceToken<string>;
-	title?: SourceToken<string>;
-	desc?: SourceToken<string>;
-	address?: SourceToken<number>;
-	group?: SourceToken<string>;
-	sw?: SourceToken<Access>;
-	hw?: SourceToken<Access>;
-	fields: Record<string, FieldSourceEditRanges>;
-}
-
-export interface FieldSourceEditRanges {
-	fullRange?: SourceRange;
-	bodyEnd?: number;
-	bodyIndent?: string;
-	enumRange?: SourceRange;
-	enumBodyEnd?: number;
-	enumBodyIndent?: string;
-	name?: SourceToken<string>;
-	title?: SourceToken<string>;
-	desc?: SourceToken<string>;
-	bitRange?: SourceToken<{ msb: number; lsb: number }>;
-	reset?: SourceToken<ResetSourceValue>;
-	sw?: SourceToken<Access>;
-	hw?: SourceToken<Access>;
-	enumName?: SourceToken<string>;
-	values: Record<string, EnumValueSourceEditRanges>;
-}
-
-export interface EnumValueSourceEditRanges {
-	fullRange?: SourceRange;
-	name?: SourceToken<string>;
-	value?: SourceToken<number>;
-	desc?: SourceToken<string>;
 }
 
 export const accessOptions: Access[] = ['RW', 'RO', 'WO', 'R', 'W'];

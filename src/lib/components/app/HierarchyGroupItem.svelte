@@ -22,13 +22,13 @@
 							: ''
 				}`}
 				ondragover={(event) => {
-					if (!editor.structureReadOnly) ui.dragRegisterOverGroup(event, group.id);
+					ui.dragRegisterOverGroup(event, group.id);
 				}}
 				ondragleave={() => {
 					if (ui.dragOverGroupId === group.id) ui.dragOverGroupId = '';
 				}}
 				ondrop={(event) => {
-					if (!editor.structureReadOnly) editor.dropRegisterOnGroup(event, group);
+					editor.dropRegisterOnGroup(event, group);
 				}}
 				role="presentation"
 			>
@@ -41,7 +41,6 @@
 							class="h-7 min-w-0 flex-1 rounded-md border border-input bg-background px-1 text-base text-foreground outline-none focus:border-primary"
 							data-group-name-input={group.id}
 							value={group.label}
-							disabled={editor.structureReadOnly}
 							onfocus={() => editor.beginGroupedDocumentEdit()}
 							oninput={(event) => editor.updateGroupLabel(group.id, textInput(event))}
 							onblur={() => {
@@ -74,7 +73,6 @@
 				{/if}
 				<button
 					class="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-primary focus:opacity-100 group-hover:opacity-100"
-					disabled={editor.structureReadOnly}
 					onclick={() => editor.addSubdir(group.path)}
 					title="Add folder"
 				>
@@ -82,7 +80,6 @@
 				</button>
 				<button
 					class="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-primary focus:opacity-100 group-hover:opacity-100"
-					disabled={editor.structureReadOnly}
 					onclick={() => editor.addRegister(group.path)}
 					title="Add register"
 				>
@@ -91,18 +88,11 @@
 			</div>
 		</ContextMenu.Trigger>
 		<ContextMenu.Content class="w-36">
-			<ContextMenu.Item
-				disabled={editor.structureReadOnly}
-				onSelect={() => editor.startRenameGroup(group.id)}
-			>
+			<ContextMenu.Item onSelect={() => editor.startRenameGroup(group.id)}>
 				<PenLine size={14} />
 				Rename
 			</ContextMenu.Item>
-			<ContextMenu.Item
-				variant="destructive"
-				disabled={editor.structureReadOnly}
-				onSelect={() => editor.deleteGroup(group.id)}
-			>
+			<ContextMenu.Item variant="destructive" onSelect={() => editor.deleteGroup(group.id)}>
 				<Trash2 size={14} />
 				Delete
 			</ContextMenu.Item>

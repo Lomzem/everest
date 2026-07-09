@@ -47,6 +47,26 @@ const createTestRegister = (overrides: Partial<Register> = {}): Register => ({
 	...overrides,
 });
 
+function withoutRegisterBlock(content: string, registerName: string) {
+	const lines = content.split('\n');
+
+	for (let index = 0; index < lines.length; index += 1) {
+		if (lines[index] !== '    reg {') continue;
+
+		const end = lines.findIndex(
+			(line, lineIndex) => lineIndex > index && /^ {4}} [A-Za-z_][A-Za-z0-9_]* @ /.test(line),
+		);
+		if (end === -1) break;
+		if (lines[end].startsWith(`    } ${registerName} @ `)) {
+			return [...lines.slice(0, index), ...lines.slice(end + 1)].join('\n');
+		}
+
+		index = end;
+	}
+
+	throw new Error(`Missing register block ${registerName}.`);
+}
+
 describe('RDL domain helpers', () => {
 	it('formats and parses numeric values by mode', () => {
 		expect(formatValue(10, 'hex')).toBe('0xa');
@@ -416,6 +436,60 @@ describe('RDL domain helpers', () => {
 				registers: [createTestRegister({ fields: [field] })],
 			}),
 		).toContain('reset = mode_e::ON;');
+	});
+
+	it('exports normalized RDL with spaces and explicit mixed register widths', () => {
+		const document = {
+			...createBlankDocument(),
+			addrmapName: 'top',
+			registers: [
+				createTestRegister({ id: 'control', name: 'control', width: 8 }),
+				createTestRegister({ id: 'wide', name: 'wide', width: 32 }),
+			],
+		};
+		const content = exportRdlDocument(document);
+
+		expect(content).toContain('    default regwidth = 8;');
+		expect(content).toContain('        regwidth = 32;');
+		expect(content).toContain('    } control @ 0x0;');
+		expect(content).not.toContain('\t');
+	});
+
+	it('keeps normalized diffs limited when inserting a register', () => {
+		const baseRegister = createTestRegister({
+			id: 'control',
+			name: 'control',
+			address: 0,
+			width: 8,
+		});
+		const newRegister = createTestRegister({
+			id: 'wide',
+			name: 'wide',
+			title: 'Wide',
+			desc: 'Wide register.',
+			address: 4,
+			width: 32,
+			fields: [
+				{
+					...createDefaultField('wide-value'),
+					msb: 31,
+					lsb: 0,
+				},
+			],
+		});
+		const baseDocument = {
+			...createBlankDocument(),
+			addrmapName: 'top',
+			registers: [baseRegister],
+		};
+		const changedDocument = {
+			...baseDocument,
+			registers: [newRegister, baseRegister],
+		};
+
+		expect(withoutRegisterBlock(exportRdlDocument(changedDocument), 'wide')).toBe(
+			exportRdlDocument(baseDocument),
+		);
 	});
 
 	it('validates decoded documents at the desktop boundary', async () => {

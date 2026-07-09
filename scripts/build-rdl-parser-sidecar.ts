@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 
@@ -12,6 +12,7 @@ const isWindowsTarget = targetTriple.includes('windows');
 const extension = isWindowsTarget ? '.exe' : '';
 const binaryName = `rdl-parser-${targetTriple}`;
 const target = path.join(binaryDir, `${binaryName}${extension}`);
+const parserSource = path.join(root, 'scripts', 'rdl_parser.py');
 
 mkdirSync(binaryDir, { recursive: true });
 
@@ -21,7 +22,11 @@ function hasBundledParser(filePath: string) {
 	return header !== '#!';
 }
 
-if (hasBundledParser(target)) {
+function hasFreshBundledParser(filePath: string) {
+	return hasBundledParser(filePath) && statSync(filePath).mtimeMs >= statSync(parserSource).mtimeMs;
+}
+
+if (hasFreshBundledParser(target)) {
 	process.exit(0);
 }
 
@@ -43,7 +48,7 @@ const uvArgs = [
 	'--noconfirm',
 	'--name',
 	binaryName,
-	path.join(root, 'scripts', 'rdl_parser.py'),
+	parserSource,
 	'--distpath',
 	binaryDir,
 	'--workpath',

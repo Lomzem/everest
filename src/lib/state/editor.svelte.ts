@@ -46,14 +46,6 @@ import {
 	updateRegister as updateRegisterInRegisters,
 } from '$lib/rdl/mutations';
 import { searchRegisters } from '$lib/rdl/search';
-import {
-	canEditEnumValueSourceProp,
-	canEditFieldSourceProp,
-	canEditRegisterSourceProp,
-	type EditableEnumValueProp,
-	type EditableFieldProp,
-	type EditableRegisterProp,
-} from '$lib/rdl/source-edits';
 import { ui } from './ui.svelte';
 import {
 	readPersistedEditorSession,
@@ -64,30 +56,8 @@ import {
 
 export { accessOptions };
 
-const editableRegisterProps = new Set<string>([
-	'name',
-	'title',
-	'desc',
-	'address',
-	'group',
-	'sw',
-	'hw',
-] satisfies EditableRegisterProp[]);
-const editableFieldProps = new Set<string>([
-	'name',
-	'title',
-	'desc',
-	'bitRange',
-	'reset',
-	'sw',
-	'hw',
-	'enumName',
-] satisfies EditableFieldProp[]);
-const editableEnumValueProps = new Set<string>([
-	'name',
-	'value',
-	'desc',
-] satisfies EditableEnumValueProp[]);
+const newRegisterIdPrefix = 'new-register-';
+const newFieldIdPrefix = 'field-';
 
 type DestructiveAction = 'new' | 'open' | 'quit';
 
@@ -107,10 +77,6 @@ export class EditorState {
 
 	addrmapLabel = $derived(addrmapLabel(this.document));
 	documentLabel = $derived(this.currentPath ? basename(this.currentPath) : this.document.title);
-	readOnly = $derived(Boolean(this.document.source?.readOnly));
-	readOnlyReason = $derived(this.document.source?.readOnlyReason ?? '');
-	sourceBacked = $derived(Boolean(this.document.source));
-	structureReadOnly = $derived(this.readOnly);
 	selectedRegister = $derived(
 		this.document.registers.find((register) => register.id === this.selectedRegisterId) ??
 			this.document.registers[0] ??
@@ -153,8 +119,8 @@ export class EditorState {
 				)
 			: [],
 	);
-	canUndo = $derived(this.undoStack.length > 0 && !this.readOnly);
-	canRedo = $derived(this.redoStack.length > 0 && !this.readOnly);
+	canUndo = $derived(this.undoStack.length > 0);
+	canRedo = $derived(this.redoStack.length > 0);
 
 	folderChildren(groupPath: string) {
 		return buildHierarchyChildren(groupPath, this.visibleHierarchyGroups, this.filteredRegisters);
@@ -233,7 +199,7 @@ export class EditorState {
 	}
 
 	beginGroupedDocumentEdit() {
-		if (this.readOnly || this.groupedEdit) return;
+		if (this.groupedEdit) return;
 		this.groupedEdit = {
 			documentBefore: this.document,
 			selectionBefore: this.selectionSnapshot(),
@@ -277,12 +243,11 @@ export class EditorState {
 	}
 
 	markDirty() {
-		if (this.readOnly) return;
 		if (!this.dirty) this.setDirty(true);
 	}
 
 	private commitDocumentChange(document: RdlDocument) {
-		if (this.readOnly || document === this.document) return false;
+		if (document === this.document) return false;
 		const before = this.document;
 		const selectionBefore = this.selectionSnapshot();
 		const dirtyBefore = this.dirty;
@@ -386,49 +351,6 @@ export class EditorState {
 			return;
 		}
 		this.revealGroupPath(this.selectedGroupPath);
-	}
-
-	canMutate() {
-		return !this.readOnly;
-	}
-
-	canEditStructure() {
-		return !this.structureReadOnly;
-	}
-
-	canEditRegister(registerId: string, prop: EditableRegisterProp) {
-		return !this.readOnly && canEditRegisterSourceProp(this.document, registerId, prop);
-	}
-
-	canEditSelectedRegister(prop: EditableRegisterProp) {
-		return this.canEditRegister(this.selectedRegister.id, prop);
-	}
-
-	canEditAddrmapName() {
-		return (
-			!this.readOnly &&
-			(!this.document.source || Boolean(this.document.source.editRanges?.addrmapName))
-		);
-	}
-
-	canEditField(fieldId: string, prop: EditableFieldProp) {
-		return (
-			!this.readOnly &&
-			canEditFieldSourceProp(this.document, this.selectedRegister.id, fieldId, prop)
-		);
-	}
-
-	canEditEnumValue(fieldId: string, enumValueId: string, prop: EditableEnumValueProp) {
-		return (
-			!this.readOnly &&
-			canEditEnumValueSourceProp(
-				this.document,
-				this.selectedRegister.id,
-				fieldId,
-				enumValueId,
-				prop,
-			)
-		);
 	}
 
 	async syncWindowState() {
@@ -649,7 +571,6 @@ export class EditorState {
 		targetRegisterId = '',
 		position: 'before' | 'after' = 'after',
 	) {
-		if (!this.canEditStructure()) return;
 		const moving = this.document.registers.find((register) => register.id === registerId);
 		if (!moving || moving.id === targetRegisterId) return;
 
@@ -675,7 +596,6 @@ export class EditorState {
 	}
 
 	async addSubdir(parentPath = '') {
-		if (!this.canEditStructure()) return;
 		const nextIndex = this.document.hierarchyGroups.length;
 		const label = `New Group ${nextIndex}`;
 		const next = {
@@ -697,7 +617,6 @@ export class EditorState {
 	}
 
 	async startRenameGroup(groupId: string) {
-		if (!this.canEditStructure()) return;
 		ui.renamingGroupId = groupId;
 		await tick();
 		focusAndSelect(`[data-group-name-input="${groupId}"]`);
@@ -708,7 +627,6 @@ export class EditorState {
 	}
 
 	deleteGroup(groupId: string) {
-		if (!this.canEditStructure()) return;
 		const group = this.document.hierarchyGroups.find((item) => item.id === groupId);
 		if (!group) return;
 
@@ -738,7 +656,6 @@ export class EditorState {
 	}
 
 	updateGroupLabel(groupId: string, label: string) {
-		if (!this.canEditStructure()) return;
 		if (groupId === rootBlockId) {
 			this.updateAddrmapName(label);
 			return;
@@ -769,7 +686,6 @@ export class EditorState {
 	}
 
 	updateAddrmapName(addrmapName: string) {
-		if (!this.canEditAddrmapName()) return;
 		this.commitDocumentChange({ ...this.document, addrmapName });
 	}
 
@@ -779,12 +695,11 @@ export class EditorState {
 			: this.selectedRegister.group,
 		address = this.nextRegisterAddress(),
 	) {
-		if (!this.canEditStructure()) return;
 		const destinationGroup = this.document.hierarchyGroups.find(
 			(group) => group.path === groupPath,
 		);
 		const next: Register = {
-			id: `new-register-${Date.now()}`,
+			id: `${newRegisterIdPrefix}${Date.now()}`,
 			name: '',
 			title: '',
 			desc: '',
@@ -821,7 +736,6 @@ export class EditorState {
 	}
 
 	deleteRegister(registerId: string) {
-		if (!this.canEditStructure()) return;
 		const deletingIndex = this.document.registers.findIndex(
 			(register) => register.id === registerId,
 		);
@@ -841,14 +755,12 @@ export class EditorState {
 	}
 
 	async startRenameRegister(registerId: string) {
-		if (!this.canEditRegister(registerId, 'name')) return;
 		this.selectRegister(registerId);
 		await tick();
 		focusAndSelect(`[data-register-name-input="${registerId}"]`);
 	}
 
 	async addField() {
-		if (!this.canEditStructure()) return;
 		if (!this.selectedRegister.id) return;
 
 		const occupied = new SvelteSet(
@@ -887,7 +799,6 @@ export class EditorState {
 	}
 
 	removeField(fieldId: string) {
-		if (!this.canEditStructure()) return;
 		const remaining = this.selectedRegister.fields.filter((field) => field.id !== fieldId);
 		this.commitDocumentChange({
 			...this.document,
@@ -903,7 +814,6 @@ export class EditorState {
 
 	updateSelectedRegister(changes: Partial<Register>) {
 		const nextChanges = this.registerChangesWithDerivedName(changes);
-		if (!this.canEditRegisterChanges(this.selectedRegister.id, nextChanges)) return;
 		this.commitDocumentChange({
 			...this.document,
 			registers: updateRegisterInRegisters(
@@ -916,7 +826,6 @@ export class EditorState {
 
 	updateField(fieldId: string, changes: Partial<Field>) {
 		const nextChanges = this.fieldChangesWithDerivedName(fieldId, changes);
-		if (!this.canEditFieldChanges(fieldId, nextChanges)) return;
 		this.commitDocumentChange({
 			...this.document,
 			registers: updateFieldInRegisters(
@@ -929,7 +838,6 @@ export class EditorState {
 	}
 
 	updateResetDraft(fieldId: string, rawValue: string) {
-		if (!this.canEditField(fieldId, 'reset')) return;
 		ui.updateNumericDraft(`reset:${fieldId}`, rawValue);
 		if (rawValue.trim()) {
 			const reset = parseEditableValue(rawValue, ui.valueMode);
@@ -943,7 +851,6 @@ export class EditorState {
 	}
 
 	commitResetDraft(fieldId: string) {
-		if (!this.canEditField(fieldId, 'reset')) return;
 		const key = `reset:${fieldId}`;
 		if (key in ui.numericDrafts && !ui.numericDrafts[key].trim()) {
 			this.updateField(fieldId, { reset: 0, resetEnumValueId: undefined });
@@ -952,7 +859,6 @@ export class EditorState {
 	}
 
 	updateResetEnumValue(fieldId: string, enumValueId: string) {
-		if (!this.canEditField(fieldId, 'reset')) return;
 		const field = this.selectedRegister.fields.find((item) => item.id === fieldId);
 		const enumValue = field?.values.find((value) => value.id === enumValueId);
 		if (!enumValue) return;
@@ -961,7 +867,6 @@ export class EditorState {
 	}
 
 	async addEnumValueForReset(fieldId: string) {
-		if (!this.canEditStructure()) return;
 		const field = this.selectedRegister.fields.find((item) => item.id === fieldId);
 		if (!field) return;
 
@@ -1000,12 +905,10 @@ export class EditorState {
 	}
 
 	clearResetEnumValue(fieldId: string) {
-		if (!this.canEditField(fieldId, 'reset')) return;
 		this.updateField(fieldId, { resetEnumValueId: undefined });
 	}
 
 	updateEnumValue(fieldId: string, enumValueId: string, changes: Partial<EnumValue>) {
-		if (!this.canEditEnumValueChanges(fieldId, enumValueId, changes)) return;
 		const field = this.selectedRegister.fields.find((item) => item.id === fieldId);
 		const fieldChanges =
 			field?.resetEnumValueId === enumValueId && changes.value !== undefined
@@ -1025,7 +928,6 @@ export class EditorState {
 	}
 
 	updateEnumNumericValue(fieldId: string, enumValueId: string, rawValue: string) {
-		if (!this.canEditEnumValue(fieldId, enumValueId, 'value')) return;
 		ui.updateNumericDraft(`enum:${fieldId}:${enumValueId}`, rawValue);
 		if (rawValue.trim()) {
 			this.updateEnumValue(fieldId, enumValueId, {
@@ -1035,7 +937,6 @@ export class EditorState {
 	}
 
 	async commitEnumNumericValue(fieldId: string, enumValueId: string, keepFocus = false) {
-		if (!this.canEditEnumValue(fieldId, enumValueId, 'value')) return;
 		const draftKey = `enum:${fieldId}:${enumValueId}`;
 		if (draftKey in ui.numericDrafts && !ui.numericDrafts[draftKey].trim()) {
 			this.updateEnumValue(fieldId, enumValueId, { value: 0 });
@@ -1053,7 +954,6 @@ export class EditorState {
 	}
 
 	async addEnumValue(fieldId: string) {
-		if (!this.canEditStructure()) return;
 		const field = this.selectedRegister.fields.find((item) => item.id === fieldId);
 		const shouldFocusEnumName = !field?.values.length;
 		const nextValue = field?.values.length
@@ -1099,7 +999,6 @@ export class EditorState {
 	}
 
 	removeEnumValue(fieldId: string, enumValueId: string) {
-		if (!this.canEditStructure()) return;
 		this.commitDocumentChange({
 			...this.document,
 			registers: this.document.registers.map((register) => {
@@ -1121,27 +1020,12 @@ export class EditorState {
 		});
 	}
 
-	private canEditRegisterChanges(registerId: string, changes: Partial<Register>) {
-		if (this.readOnly) return false;
-		if (!this.document.source) return true;
-
-		return Object.keys(changes).every(
-			(prop) => isEditableRegisterProp(prop) && this.canEditRegister(registerId, prop),
-		);
-	}
-
-	private canEditFieldChanges(fieldId: string, changes: Partial<Field>) {
-		if (this.readOnly) return false;
-		if (!this.document.source) return true;
-
-		return Object.keys(changes).every((prop) => {
-			const sourceProp = fieldSourceProp(prop);
-			return sourceProp !== undefined && this.canEditField(fieldId, sourceProp);
-		});
-	}
-
 	private registerChangesWithDerivedName(changes: Partial<Register>) {
-		if (changes.title === undefined || changes.name !== undefined || this.document.source) {
+		if (
+			changes.title === undefined ||
+			changes.name !== undefined ||
+			!this.selectedRegister.id.startsWith(newRegisterIdPrefix)
+		) {
 			return changes;
 		}
 
@@ -1153,7 +1037,11 @@ export class EditorState {
 	}
 
 	private fieldChangesWithDerivedName(fieldId: string, changes: Partial<Field>) {
-		if (changes.title === undefined || changes.name !== undefined || this.document.source) {
+		if (
+			changes.title === undefined ||
+			changes.name !== undefined ||
+			!fieldId.startsWith(newFieldIdPrefix)
+		) {
 			return changes;
 		}
 
@@ -1164,19 +1052,6 @@ export class EditorState {
 		if (field.name && field.name !== previousDerivedName) return changes;
 
 		return { ...changes, name: deriveIdentifier(changes.title) };
-	}
-
-	private canEditEnumValueChanges(
-		fieldId: string,
-		enumValueId: string,
-		changes: Partial<EnumValue>,
-	) {
-		if (this.readOnly) return false;
-		if (!this.document.source) return true;
-
-		return Object.keys(changes).every(
-			(prop) => isEditableEnumValueProp(prop) && this.canEditEnumValue(fieldId, enumValueId, prop),
-		);
 	}
 
 	fieldBitWidth(field: Field) {
@@ -1204,21 +1079,6 @@ function focusAndSelect(selector: string) {
 	const input = globalThis.document.querySelector<HTMLInputElement | HTMLTextAreaElement>(selector);
 	input?.focus();
 	input?.select();
-}
-
-function isEditableRegisterProp(prop: string): prop is EditableRegisterProp {
-	return editableRegisterProps.has(prop);
-}
-
-function isEditableEnumValueProp(prop: string): prop is EditableEnumValueProp {
-	return editableEnumValueProps.has(prop);
-}
-
-function fieldSourceProp(prop: string): EditableFieldProp | undefined {
-	if (prop === 'msb' || prop === 'lsb') return 'bitRange';
-	if (prop === 'resetEnumValueId') return 'reset';
-	if (!editableFieldProps.has(prop)) return undefined;
-	return prop as EditableFieldProp;
 }
 
 export const editor = new EditorState();

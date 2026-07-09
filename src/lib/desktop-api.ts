@@ -5,7 +5,6 @@ export type MenuCommand = 'new' | 'open' | 'save' | 'save-as' | 'quit';
 export interface RdlFileResult {
 	readonly path: string;
 	readonly document: RdlDocument;
-	readonly source?: RdlDocument['source'];
 }
 
 export interface DesktopApi {

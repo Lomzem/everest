@@ -3,15 +3,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Empty from '$lib/components/ui/empty';
 	import { formatAddress } from '$lib/rdl/format';
-	import { rootBlockId } from '$lib/rdl/hierarchy';
 	import { editor, textInput } from '$lib/state/editor.svelte';
 	import EditorBreadcrumbs from './EditorBreadcrumbs.svelte';
-
-	let canRenameSelectedFolder = $derived(
-		editor.selectedFolder?.id === rootBlockId
-			? editor.canEditAddrmapName()
-			: !editor.structureReadOnly,
-	);
 </script>
 
 {#if editor.selectedFolder}
@@ -29,7 +22,6 @@
 						class="w-full rounded-md border border-input bg-background px-2 py-2 text-2xl font-semibold leading-8 tracking-normal text-foreground outline-none hover:border-primary/60 focus:border-primary disabled:border-transparent disabled:px-0"
 						data-folder-label-input={editor.selectedFolder.id}
 						value={editor.selectedFolder.label}
-						disabled={!canRenameSelectedFolder}
 						onfocus={() => editor.beginGroupedDocumentEdit()}
 						oninput={(event) =>
 							editor.updateGroupLabel(editor.selectedFolder?.id ?? '', textInput(event))}
@@ -43,7 +35,6 @@
 					variant="outline"
 					size="lg"
 					class="text-primary"
-					disabled={editor.structureReadOnly}
 					onclick={() => editor.addSubdir(editor.selectedFolder?.path ?? '')}
 				>
 					<FolderPlus size={14} />
@@ -53,7 +44,6 @@
 					variant="outline"
 					size="lg"
 					class="text-primary"
-					disabled={editor.structureReadOnly}
 					onclick={() => editor.addRegister(editor.selectedFolder?.path ?? '')}
 				>
 					<Plus size={14} />
@@ -137,7 +127,6 @@
 								variant="ghost"
 								size="sm"
 								class="text-primary"
-								disabled={editor.structureReadOnly}
 								onclick={() => editor.addRegister(editor.selectedFolder?.path ?? '', child.address)}
 							>
 								<Plus size={14} />
@@ -159,7 +148,6 @@
 							variant="outline"
 							size="lg"
 							class="text-primary"
-							disabled={editor.structureReadOnly}
 							onclick={() => editor.addSubdir(editor.selectedFolder?.path ?? '')}
 						>
 							<FolderPlus size={14} />
@@ -169,7 +157,6 @@
 							variant="outline"
 							size="lg"
 							class="text-primary"
-							disabled={editor.structureReadOnly}
 							onclick={() => editor.addRegister(editor.selectedFolder?.path ?? '')}
 						>
 							<Plus size={14} />

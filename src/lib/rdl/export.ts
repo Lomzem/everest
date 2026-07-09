@@ -1,6 +1,7 @@
 import type { Access, Field, RdlDocument, Register } from './model';
 
-const indent = '\t';
+const indent = '    ';
+const defaultRegisterWidth = 8;
 
 export function exportRdlDocument(document: RdlDocument): string {
 	const lines: string[] = [
@@ -12,7 +13,7 @@ export function exportRdlDocument(document: RdlDocument): string {
 		`addrmap ${rdlIdentifier(document.addrmapName, 'addrmap')} {`,
 		`${indent}name = ${rdlString(document.title || document.deviceName)};`,
 		`${indent}desc = ${rdlString(document.desc || document.title || document.deviceName)};`,
-		`${indent}default regwidth = ${defaultRegWidth(document.registers)};`,
+		`${indent}default regwidth = ${defaultRegisterWidth};`,
 		`${indent}default sw = r;`,
 		`${indent}default hw = rw;`,
 	];
@@ -28,17 +29,22 @@ export function exportRdlDocument(document: RdlDocument): string {
 function exportRegister(register: Register): string[] {
 	const registerName = rdlIdentifier(register.name, 'register');
 	const emittedEnums = new Set<string>();
-	const lines = [
-		`${indent}reg {`,
+	const lines = [`${indent}reg {`];
+
+	if (register.group) {
+		lines.push(`${indent}${indent}doc_group = ${rdlString(register.group)};`);
+	}
+
+	if (normalizedWidth(register.width) !== defaultRegisterWidth) {
+		lines.push(`${indent}${indent}regwidth = ${normalizedWidth(register.width)};`);
+	}
+
+	lines.push(
 		`${indent}${indent}default sw = ${rdlAccess(register.sw)};`,
 		`${indent}${indent}default hw = ${rdlAccess(register.hw)};`,
 		`${indent}${indent}name = ${rdlString(register.title)};`,
 		`${indent}${indent}desc = ${rdlString(register.desc)};`,
-	];
-
-	if (register.group) {
-		lines.splice(1, 0, `${indent}${indent}doc_group = ${rdlString(register.group)};`);
-	}
+	);
 
 	for (const field of register.fields) {
 		const enumName = field.enumName ? rdlIdentifier(field.enumName, `${field.name}_e`) : '';
@@ -59,9 +65,7 @@ function exportEnum(field: Field): string[] {
 
 	for (const value of field.values) {
 		lines.push(
-			`${indent}${indent}${indent}${rdlIdentifier(value.name, 'VALUE')} = ${value.value} {desc = ${rdlString(
-				value.desc,
-			)};};`,
+			`${indent}${indent}${indent}${rdlIdentifier(value.name, 'VALUE')} = ${rdlInteger(value.value)} {desc = ${rdlString(value.desc)};};`,
 		);
 	}
 
@@ -90,8 +94,9 @@ function exportField(register: Register, field: Field): string[] {
 	return lines;
 }
 
-function defaultRegWidth(registers: Register[]) {
-	return registers[0]?.width ?? 8;
+function normalizedWidth(width: number) {
+	if (!Number.isFinite(width)) return defaultRegisterWidth;
+	return Math.max(1, Math.trunc(width));
 }
 
 function fieldBitWidth(field: Field) {
@@ -116,8 +121,9 @@ function rdlReset(field: Field) {
 }
 
 function formatRange(field: Field, registerWidth: number) {
-	const msb = clampInteger(field.msb, registerWidth - 1);
-	const lsb = clampInteger(field.lsb, registerWidth - 1);
+	const max = normalizedWidth(registerWidth) - 1;
+	const msb = clampInteger(field.msb, max);
+	const lsb = clampInteger(field.lsb, max);
 	return `[${msb}:${lsb}]`;
 }
 
@@ -133,6 +139,11 @@ function rdlAccess(access: Access) {
 
 function rdlString(value: string) {
 	return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
+function rdlInteger(value: number) {
+	if (!Number.isFinite(value)) return '0';
+	return `${Math.max(0, Math.trunc(value))}`;
 }
 
 function rdlIdentifier(value: string | undefined, fallback: string) {

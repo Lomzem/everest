@@ -104,7 +104,6 @@
 		</div>
 		<button
 			class="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-destructive/30 bg-background text-destructive hover:bg-destructive/10"
-			disabled={editor.structureReadOnly}
 			onclick={() => editor.removeField(field.id)}
 			title="Delete field"
 		>
@@ -124,7 +123,6 @@
 							data-field-name-input={field.id}
 							placeholder="New Field"
 							value={field.title}
-							disabled={!editor.canEditField(field.id, 'title')}
 							onfocus={() => editor.beginGroupedDocumentEdit()}
 							oninput={(event) => editor.updateField(field.id, { title: textInput(event) })}
 							onblur={() => editor.endGroupedDocumentEdit()}
@@ -136,7 +134,6 @@
 							class="h-9 w-full rounded-md border border-input bg-background px-2 font-mono text-base outline-none focus:border-primary"
 							placeholder="new_field"
 							value={field.name}
-							disabled={!editor.canEditField(field.id, 'name')}
 							onfocus={() => editor.beginGroupedDocumentEdit()}
 							oninput={(event) => editor.updateField(field.id, { name: textInput(event) })}
 							onblur={() => editor.endGroupedDocumentEdit()}
@@ -153,7 +150,6 @@
 								min="0"
 								max={editor.selectedRegister.width - 1}
 								value={field.msb}
-								disabled={!editor.canEditField(field.id, 'bitRange')}
 								title={bitRangeValidationErrors.join(' ')}
 								onfocus={() => editor.beginGroupedDocumentEdit()}
 								oninput={(event) => editor.updateField(field.id, { msb: numberInput(event) })}
@@ -184,7 +180,6 @@
 								min="0"
 								max={editor.selectedRegister.width - 1}
 								value={field.lsb}
-								disabled={!editor.canEditField(field.id, 'bitRange')}
 								title={bitRangeValidationErrors.join(' ')}
 								onfocus={() => editor.beginGroupedDocumentEdit()}
 								oninput={(event) => editor.updateField(field.id, { lsb: numberInput(event) })}
@@ -217,7 +212,6 @@
 													class={`flex h-9 w-full items-center gap-2 rounded-md border bg-background px-2 text-left text-base outline-none focus:border-primary ${errorClass(
 														resetValidationErrors,
 													)}`}
-													disabled={!editor.canEditField(field.id, 'reset')}
 													title={resetValidationErrors.join(' ') || 'Choose reset value'}
 												>
 													<span class="min-w-0 flex-1 truncate font-semibold">
@@ -301,7 +295,6 @@
 									<input
 										class="min-w-0 flex-1 px-2 font-mono text-base outline-none"
 										inputmode={ui.valueMode === 'dec' ? 'numeric' : 'text'}
-										disabled={!editor.canEditField(field.id, 'reset')}
 										value={ui.numericInputValue(
 											`reset:${field.id}`,
 											field.reset,
@@ -323,7 +316,6 @@
 						<Select.Root
 							type="single"
 							value={field.sw}
-							disabled={!editor.canEditField(field.id, 'sw')}
 							onValueChange={(sw: string) => editor.updateField(field.id, { sw: sw as Access })}
 						>
 							<Select.Trigger
@@ -343,7 +335,6 @@
 						<Select.Root
 							type="single"
 							value={field.hw}
-							disabled={!editor.canEditField(field.id, 'hw')}
 							onValueChange={(hw: string) => editor.updateField(field.id, { hw: hw as Access })}
 						>
 							<Select.Trigger
@@ -366,7 +357,6 @@
 						class="min-h-20 w-full resize-none rounded-md border border-input bg-background p-2 text-base leading-6 outline-none focus:border-primary"
 						placeholder="Describe the field behavior."
 						value={field.desc}
-						disabled={!editor.canEditField(field.id, 'desc')}
 						onfocus={() => editor.beginGroupedDocumentEdit()}
 						oninput={(event) => editor.updateField(field.id, { desc: textInput(event) })}
 						onblur={() => editor.endGroupedDocumentEdit()}></textarea>

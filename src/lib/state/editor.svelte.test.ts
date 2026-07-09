@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RdlDocument } from '$lib/rdl/model';
-import { prepareSourceBackedDocument } from '$lib/rdl/source-edits';
 import { EditorState } from './editor.svelte';
 import { ui } from './ui.svelte';
 
@@ -110,17 +109,26 @@ describe('EditorState derived names', () => {
 		expect(state.selectedField.name).toBe('custom_field');
 	});
 
-	it('allows structural edits for source-backed documents with safe ranges', async () => {
+	it('keeps parsed identifiers for imported documents when titles change', () => {
 		const state = new EditorState();
-		state.applyDocument(prepareSourceBackedDocument(sourceDocument()), '/tmp/top.rdl', false);
+		state.applyDocument(sourceDocument(), '/tmp/top.rdl', false);
 		state.selectRegister('control');
 
-		expect(state.canEditStructure()).toBe(true);
+		state.updateSelectedRegister({ title: 'Control Next' });
+		state.updateField('control-mode', { title: 'Mode Next' });
+
+		expect(state.selectedRegister.name).toBe('control');
+		expect(state.selectedRegister.fields[0].name).toBe('mode');
+	});
+
+	it('allows structural edits for imported documents', async () => {
+		const state = new EditorState();
+		state.applyDocument(sourceDocument(), '/tmp/top.rdl', false);
+		state.selectRegister('control');
 
 		await state.addField();
 		const fieldId = state.selectedFieldId;
 		expect(state.selectedRegister.fields).toHaveLength(2);
-		expect(state.canEditField(fieldId, 'title')).toBe(true);
 		state.updateField(fieldId, { title: 'Editable Field', name: 'editable_field' });
 		expect(state.selectedRegister.fields.find((field) => field.id === fieldId)).toMatchObject({
 			title: 'Editable Field',
@@ -131,7 +139,6 @@ describe('EditorState derived names', () => {
 		const modeField = state.selectedRegister.fields.find((field) => field.id === 'control-mode');
 		const enumValueId = modeField?.values[0].id ?? '';
 		expect(modeField?.values).toHaveLength(1);
-		expect(state.canEditEnumValue('control-mode', enumValueId, 'name')).toBe(true);
 		state.updateEnumValue('control-mode', enumValueId, {
 			name: 'ENABLED',
 			value: 1,
@@ -146,17 +153,14 @@ describe('EditorState derived names', () => {
 		});
 	});
 
-	it('allows editing a newly added source-backed register', async () => {
+	it('allows editing a newly added register in an imported document', async () => {
 		vi.spyOn(Date, 'now').mockReturnValue(42);
 		const state = new EditorState();
-		state.applyDocument(prepareSourceBackedDocument(sourceDocument()), '/tmp/top.rdl', false);
+		state.applyDocument(sourceDocument(), '/tmp/top.rdl', false);
 
 		await state.addRegister('');
 
 		expect(state.selectedRegister.id).toBe('new-register-42');
-		expect(state.canEditSelectedRegister('title')).toBe(true);
-		expect(state.canEditSelectedRegister('name')).toBe(true);
-		expect(state.canEditSelectedRegister('address')).toBe(true);
 
 		state.updateSelectedRegister({
 			title: 'Status',
@@ -185,11 +189,9 @@ describe('EditorState derived names', () => {
 		expect(state.canUndo).toBe(true);
 	});
 
-	it('allows source-backed addrmap rename when the source token is known', () => {
+	it('allows imported addrmap rename', () => {
 		const state = new EditorState();
-		state.applyDocument(prepareSourceBackedDocument(sourceDocument()), '/tmp/top.rdl', false);
-
-		expect(state.canEditAddrmapName()).toBe(true);
+		state.applyDocument(sourceDocument(), '/tmp/top.rdl', false);
 
 		state.updateAddrmapName('video_top');
 
@@ -252,11 +254,11 @@ describe('EditorState derived names', () => {
 		expect(ui.numericDrafts[`enum:${fieldId}:enum-42`]).toBe('');
 	});
 
-	it('sorts source-backed enum values by numeric value after commit', async () => {
+	it('sorts imported enum values by numeric value after commit', async () => {
 		let now = 1;
 		vi.spyOn(Date, 'now').mockImplementation(() => now++);
 		const state = new EditorState();
-		state.applyDocument(prepareSourceBackedDocument(sourceDocument()), '/tmp/top.rdl', false);
+		state.applyDocument(sourceDocument(), '/tmp/top.rdl', false);
 		state.selectRegister('control');
 		await state.addEnumValue('control-mode');
 		await state.addEnumValue('control-mode');
@@ -564,12 +566,6 @@ function sourceDocument(): RdlDocument {
 				],
 			},
 		],
-		source: {
-			rootPath: '/tmp/top.rdl',
-			text: 'addrmap top { reg { field { reset = 0; } mode[1:0]; } control @ 0x0; };',
-			readOnly: true,
-			readOnlyReason: 'Source-safe edit ranges are not available yet.',
-		},
 	};
 }
 
@@ -593,6 +589,5 @@ function enumResetDocument(): RdlDocument {
 				],
 			},
 		],
-		source: undefined,
 	};
 }

@@ -102,13 +102,13 @@
 								: ''
 					}`}
 					ondragover={(event) => {
-						if (!editor.structureReadOnly) ui.dragRegisterOverGroup(event, rootBlockId);
+						ui.dragRegisterOverGroup(event, rootBlockId);
 					}}
 					ondragleave={() => {
 						if (ui.dragOverGroupId === rootBlockId) ui.dragOverGroupId = '';
 					}}
 					ondrop={(event) => {
-						if (!editor.structureReadOnly) editor.dropRegisterOnRoot(event);
+						editor.dropRegisterOnRoot(event);
 					}}
 					role="presentation"
 				>
@@ -128,7 +128,6 @@
 					</button>
 					<button
 						class="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-primary focus:opacity-100 group-hover:opacity-100"
-						disabled={editor.structureReadOnly}
 						onclick={() => editor.addSubdir()}
 						title="Add folder"
 					>
@@ -136,7 +135,6 @@
 					</button>
 					<button
 						class="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-primary focus:opacity-100 group-hover:opacity-100"
-						disabled={editor.structureReadOnly}
 						onclick={() => editor.addRegister('')}
 						title="Add register"
 					>

@@ -57,7 +57,6 @@
 							spellcheck="false"
 							pattern={addressInputPattern}
 							value={formatEditableAddress(editor.selectedRegister.address)}
-							disabled={!editor.canEditSelectedRegister('address')}
 							onfocus={() => editor.beginGroupedDocumentEdit()}
 							oninput={updateAddressInput}
 							onblur={() => editor.endGroupedDocumentEdit()}
@@ -72,7 +71,6 @@
 						<Select.Root
 							type="single"
 							value={editor.selectedRegister.sw}
-							disabled={!editor.canEditSelectedRegister('sw')}
 							onValueChange={(sw: string) => editor.updateSelectedRegister({ sw: sw as Access })}
 						>
 							<Select.Trigger
@@ -94,7 +92,6 @@
 						<Select.Root
 							type="single"
 							value={editor.selectedRegister.hw}
-							disabled={!editor.canEditSelectedRegister('hw')}
 							onValueChange={(hw: string) => editor.updateSelectedRegister({ hw: hw as Access })}
 						>
 							<Select.Trigger
@@ -120,7 +117,6 @@
 					data-register-title-input={editor.selectedRegister.id}
 					placeholder="New Register"
 					value={editor.selectedRegister.title}
-					disabled={!editor.canEditSelectedRegister('title')}
 					onfocus={() => editor.beginGroupedDocumentEdit()}
 					oninput={(event) => editor.updateSelectedRegister({ title: textInput(event) })}
 					onblur={() => editor.endGroupedDocumentEdit()}
@@ -139,7 +135,6 @@
 						data-register-name-input={editor.selectedRegister.id}
 						placeholder="new_register"
 						value={editor.selectedRegister.name}
-						disabled={!editor.canEditSelectedRegister('name')}
 						title={registerIdErrors.join(' ')}
 						onfocus={() => editor.beginGroupedDocumentEdit()}
 						oninput={(event) => editor.updateSelectedRegister({ name: textInput(event) })}
@@ -168,7 +163,6 @@
 					class="min-h-16 w-full resize-none rounded-md border border-input bg-background px-2 py-1 text-base leading-6 text-foreground outline-none hover:border-primary/60 focus:border-primary"
 					placeholder="Describe the register."
 					value={editor.selectedRegister.desc}
-					disabled={!editor.canEditSelectedRegister('desc')}
 					onfocus={() => editor.beginGroupedDocumentEdit()}
 					oninput={(event) => editor.updateSelectedRegister({ desc: textInput(event) })}
 					onblur={() => editor.endGroupedDocumentEdit()}

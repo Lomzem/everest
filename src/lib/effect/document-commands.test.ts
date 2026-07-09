@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Effect, Layer } from 'effect';
 import { createBlankDocument, createDefaultField, type RdlDocument } from '$lib/rdl/model';
-import { prepareSourceBackedDocument } from '$lib/rdl/source-edits';
 import { DesktopBridge, DesktopUnavailable, type DesktopBridgeService } from './desktop';
 import { openDocument, saveDocument } from './document-commands';
 
@@ -165,9 +164,9 @@ describe('document command effects', () => {
 		expect(result).toEqual({ path: '/tmp/copy.rdl', saved: true });
 	});
 
-	it('saves source-backed documents with newly inserted register, field, and enum content', async () => {
+	it('saves normalized documents with newly inserted register, field, and enum content', async () => {
 		const writes: { path: string; content: string }[] = [];
-		const sourceDocument = prepareSourceBackedDocument({
+		const document: RdlDocument = {
 			...createBlankDocument(),
 			addrmapName: 'top',
 			registers: [
@@ -183,18 +182,6 @@ describe('document command effects', () => {
 					hw: 'RW',
 					fields: [],
 				},
-			],
-			source: {
-				rootPath: '/tmp/top.rdl',
-				text: 'addrmap top { reg { name = "Control"; } control @ 0x0; };',
-				readOnly: true,
-				readOnlyReason: 'Source-safe edit ranges are not available yet.',
-			},
-		});
-		const document: RdlDocument = {
-			...sourceDocument,
-			registers: [
-				...sourceDocument.registers,
 				{
 					id: 'new-register-1',
 					name: 'mock_reg',
@@ -389,28 +376,19 @@ describe('document command effects', () => {
 		expect(writes[0].match(/enum mode_e/g)).toHaveLength(2);
 	});
 
-	it('attaches parser source metadata to opened documents', async () => {
+	it('opens parser documents without source metadata', async () => {
 		const result = await runWithDesktop(
 			openDocument(),
 			desktopMock({
 				openRdlFile: Effect.succeed({
 					path: '/tmp/imported.rdl',
 					document: createBlankDocument(),
-					source: {
-						rootPath: '/tmp/imported.rdl',
-						text: 'addrmap imported {};',
-						readOnly: true,
-						readOnlyReason: 'Source-safe edit ranges are not available yet.',
-					},
 				}),
 			}),
 		);
 
-		expect(result?.document.source).toMatchObject({
-			rootPath: '/tmp/imported.rdl',
-			text: 'addrmap imported {};',
-			readOnly: false,
-		});
+		expect(result?.path).toBe('/tmp/imported.rdl');
+		expect(Object.hasOwn(result?.document ?? {}, 'source')).toBe(false);
 	});
 
 	it('infers enum reset selections for parser-opened numeric resets', async () => {
@@ -502,16 +480,40 @@ describe('document command effects', () => {
 		]);
 	});
 
-	it('saves parser-backed read-only documents without normalizing the source text', async () => {
+	it('overwrites imported documents with normalized RDL', async () => {
 		const saved: string[] = [];
-		const document = {
+		const document: RdlDocument = {
 			...createBlankDocument(),
-			source: {
-				rootPath: '/tmp/source.rdl',
-				text: 'addrmap source { reg { field {} value[0:0]; } control @ 0x0; };',
-				readOnly: true,
-				readOnlyReason: 'Source-safe edit ranges are not available yet.',
-			},
+			addrmapName: 'source',
+			registers: [
+				{
+					id: 'control',
+					name: 'control',
+					title: 'Control',
+					desc: '',
+					address: 0,
+					width: 8,
+					group: '',
+					sw: 'RW',
+					hw: 'RW',
+					fields: [
+						{
+							id: 'control-value',
+							name: 'value',
+							title: 'Value',
+							desc: '',
+							msb: 0,
+							lsb: 0,
+							reset: 0,
+							sw: 'RW',
+							hw: 'RW',
+							enumName: '',
+							values: [],
+							color: '',
+						},
+					],
+				},
+			],
 		};
 
 		const result = await runWithDesktop(
@@ -530,16 +532,16 @@ describe('document command effects', () => {
 		);
 
 		expect(result).toEqual({ path: '/tmp/source.rdl', saved: true });
-		expect(saved).toEqual([
-			'/tmp/source.rdl:addrmap source { reg { field {} value[0:0]; } control @ 0x0; };',
-		]);
+		expect(saved).toHaveLength(1);
+		expect(saved[0]).toContain('property doc_group');
+		expect(saved[0]).toContain('addrmap source');
+		expect(saved[0]).toContain('} control @ 0x0;');
+		expect(saved[0]).not.toContain('field {} value[0:0]');
 	});
 
-	it('saves parser-backed editable documents by patching source-safe ranges', async () => {
+	it('saves edited imported documents with normalized output', async () => {
 		const saved: string[] = [];
-		const sourceText =
-			'addrmap source { reg { name = "Control"; field { name = "Enable"; reset = 0; } enable[0:0]; } control @ 0x0; };';
-		const document = prepareSourceBackedDocument({
+		const document: RdlDocument = {
 			deviceName: 'source',
 			blockName: 'source',
 			addrmapName: 'source',
@@ -575,13 +577,7 @@ describe('document command effects', () => {
 					],
 				},
 			],
-			source: {
-				rootPath: '/tmp/source.rdl',
-				text: sourceText,
-				readOnly: true,
-				readOnlyReason: 'Source-safe edit ranges are not available yet.',
-			},
-		});
+		};
 		const register = document.registers[0];
 		const field = register.fields[0];
 		const edited: RdlDocument = {

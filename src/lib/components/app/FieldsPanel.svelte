@@ -51,13 +51,7 @@
 			>
 				Collapse All
 			</Button>
-			<Button
-				variant="outline"
-				size="lg"
-				class="text-primary"
-				disabled={editor.structureReadOnly}
-				onclick={addField}
-			>
+			<Button variant="outline" size="lg" class="text-primary" onclick={addField}>
 				<Plus size={14} />
 				Add Field
 			</Button>

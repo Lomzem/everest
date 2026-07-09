@@ -29,16 +29,6 @@ struct SaveResult {
 struct ParsedRdlFile {
     path: String,
     document: serde_json::Value,
-    source: RdlSource,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct RdlSource {
-    root_path: String,
-    text: String,
-    read_only: bool,
-    read_only_reason: String,
 }
 
 fn ensure_rdl_extension(file_path: &str) -> String {
