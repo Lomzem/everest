@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Braces, Plus, Trash2 } from '@lucide/svelte';
 	import type { Field } from '$lib/rdl/model';
-	import { enumIdentifierErrors, enumValueErrors, identifierErrors } from '$lib/rdl/validation';
+	import { enumValueErrors, identifierErrors } from '$lib/rdl/validation';
 	import {
 		fieldBitWidth,
 		formatEditableValue,
@@ -43,10 +43,7 @@
 </script>
 
 {#if field.values.length}
-	{@const enumNameErrors = [
-		...identifierErrors(field.enumName, 'Enum name'),
-		...enumIdentifierErrors(editor.document, field),
-	]}
+	{@const enumNameErrors = identifierErrors(field.enumName, 'Enum name')}
 	<div class="mt-4 rounded-md border border-border bg-card p-3" data-enum-editor={field.id}>
 		<div class="mb-3 grid grid-cols-[auto_1fr_auto] items-center gap-2 text-base">
 			<Braces size={15} class="text-muted-foreground" />

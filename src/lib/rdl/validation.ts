@@ -18,7 +18,7 @@ export function identifierErrors(value: string | undefined, label: string) {
 	return [`${label} can only contain letters, numbers, and underscores.`];
 }
 
-export type DocumentIdentifierIssueKind = 'register' | 'enum' | 'address';
+export type DocumentIdentifierIssueKind = 'register' | 'address';
 
 export interface DocumentIdentifierIssue {
 	readonly kind: DocumentIdentifierIssueKind;
@@ -39,17 +39,6 @@ export function documentIdentifierIssues(document: RdlDocument): DocumentIdentif
 			})),
 			document.addrmapName,
 		),
-		...duplicateEnumIssues(
-			document.registers.flatMap((register) =>
-				register.fields
-					.filter((field) => field.values.length)
-					.map((field) => ({
-						id: field.id,
-						identifier: normalizeIdentifier(field.enumName),
-						registerName: register.name,
-					})),
-			),
-		),
 		...registerAddressIssues(document),
 	];
 }
@@ -66,30 +55,6 @@ export function registerAddressErrors(document: RdlDocument, register: Register)
 	return documentIdentifierIssues(document)
 		.filter((issue) => issue.kind === 'address' && issue.ids.includes(register.id))
 		.map((issue) => issue.message);
-}
-
-export function enumIdentifierErrors(document: RdlDocument, field: Field) {
-	const identifier = normalizeIdentifier(field.enumName);
-	if (!identifier || !field.values.length) return [];
-	const duplicateRegisters = uniqueItems(
-		document.registers.flatMap((register) =>
-			register.fields.some(
-				(candidate) =>
-					candidate.id !== field.id &&
-					candidate.values.length &&
-					normalizeIdentifier(candidate.enumName) === identifier,
-			)
-				? [register.name]
-				: [],
-		),
-	);
-
-	if (!duplicateRegisters.length) return [];
-	return [duplicateEnumMessage(identifier, duplicateRegisters)];
-}
-
-export function registerEnumIdentifierErrors(document: RdlDocument, register: Register) {
-	return uniqueItems(register.fields.flatMap((field) => enumIdentifierErrors(document, field)));
 }
 
 function duplicateIdentifierIssues(
@@ -114,40 +79,6 @@ function duplicateIdentifierIssues(
 			ids,
 			message: `Duplicate ${kind} identifier "${identifier}" in addrmap "${addrmapName}".`,
 		}));
-}
-
-function duplicateEnumIssues(
-	items: readonly {
-		readonly id: string;
-		readonly identifier: string;
-		readonly registerName: string;
-	}[],
-) {
-	const itemsByIdentifier = new Map<string, { id: string; registerName: string }[]>();
-	for (const item of items) {
-		if (!item.identifier) continue;
-		itemsByIdentifier.set(item.identifier, [
-			...(itemsByIdentifier.get(item.identifier) ?? []),
-			{ id: item.id, registerName: item.registerName },
-		]);
-	}
-
-	return [...itemsByIdentifier.entries()]
-		.filter(([, items]) => items.length > 1)
-		.map(([identifier, items]) => {
-			const registerNames = uniqueItems(items.map((item) => item.registerName));
-			return {
-				kind: 'enum' as const,
-				identifier,
-				ids: items.map((item) => item.id),
-				registerNames,
-				message: duplicateEnumMessage(identifier, registerNames),
-			};
-		});
-}
-
-function duplicateEnumMessage(identifier: string, registerNames: readonly string[]) {
-	return `Duplicate enum identifier "${identifier}" also used in ${registerLabel(registerNames)}.`;
 }
 
 function registerAddressIssues(document: RdlDocument): DocumentIdentifierIssue[] {
@@ -199,16 +130,6 @@ function formatAddressRange(start: number, end: number) {
 function registerDisplayName(register: Register) {
 	const label = register.name || register.title || register.id || 'register';
 	return `register "${label}"`;
-}
-
-function registerLabel(registerNames: readonly string[]) {
-	const labels = registerNames.map((name) => `"${name}"`);
-	if (labels.length === 1) return `register ${labels[0]}`;
-	return `registers ${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
-}
-
-function uniqueItems(items: readonly string[]) {
-	return [...new Set(items)];
 }
 
 function normalizeIdentifier(value: string | undefined) {

@@ -4,7 +4,7 @@
 	import * as ContextMenu from '$lib/components/ui/context-menu';
 	import type { Register } from '$lib/rdl/model';
 	import { formatAddress } from '$lib/rdl/format';
-	import { registerEnumIdentifierErrors, registerIdentifierErrors } from '$lib/rdl/validation';
+	import { registerIdentifierErrors } from '$lib/rdl/validation';
 	import { editor } from '$lib/state/editor.svelte';
 	import { ui } from '$lib/state/ui.svelte';
 	import HighlightedText from './HighlightedText.svelte';
@@ -14,8 +14,6 @@
 	let label = $derived(register.title || register.name);
 	let labelRanges = $derived(register.title ? searchResult?.titleRanges : searchResult?.nameRanges);
 	let registerIdErrors = $derived(registerIdentifierErrors(editor.document, register));
-	let enumIdErrors = $derived(registerEnumIdentifierErrors(editor.document, register));
-	let registerErrors = $derived([...registerIdErrors, ...enumIdErrors]);
 </script>
 
 <ContextMenu.Root>
@@ -56,12 +54,7 @@
 				onclick={() => editor.selectRegister(register.id)}
 			>
 				<span class="min-w-0">
-					<span
-						class={`block truncate font-medium ${
-							enumIdErrors.length && !registerIdErrors.length ? 'text-destructive' : ''
-						}`}
-						title={registerErrors.join(' ')}
-					>
+					<span class="block truncate font-medium" title={registerIdErrors.join(' ')}>
 						<HighlightedText text={label} ranges={labelRanges ?? []} />
 					</span>
 					<span
@@ -72,11 +65,8 @@
 					>
 						<HighlightedText text={register.name} ranges={searchResult?.nameRanges ?? []} />
 					</span>
-					<span
-						class={`block text-base ${
-							enumIdErrors.length ? 'text-destructive' : 'text-muted-foreground/80'
-						}`}
-						title={enumIdErrors.join(' ')}>{register.fields.length} fields</span
+					<span class="block text-base text-muted-foreground/80"
+						>{register.fields.length} fields</span
 					>
 				</span>
 				<Badge

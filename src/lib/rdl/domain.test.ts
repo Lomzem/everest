@@ -23,13 +23,11 @@ import { decodeRdlDocument, validateRdlDocument } from './schema';
 import {
 	bitRangeErrors,
 	documentIdentifierIssues,
-	enumIdentifierErrors,
 	enumValueErrors,
 	fieldOverlapErrors,
 	fieldOverlaps,
 	identifierErrors,
 	registerAddressErrors,
-	registerEnumIdentifierErrors,
 	registerIdentifierErrors,
 	resetErrors,
 } from './validation';
@@ -467,7 +465,7 @@ describe('RDL domain helpers', () => {
 		expect(registerIdentifierErrors(document, document.registers[2])).toEqual([]);
 	});
 
-	it('reports duplicate enum identifiers across registers and ignores empty enum names', () => {
+	it('allows duplicate enum identifiers across registers', async () => {
 		const modeField = {
 			...createDefaultField('mode'),
 			enumName: 'mode_e',
@@ -507,23 +505,8 @@ describe('RDL domain helpers', () => {
 			],
 		};
 
-		expect(documentIdentifierIssues(document)).toEqual([
-			{
-				kind: 'enum',
-				identifier: 'mode_e',
-				ids: ['mode', 'status'],
-				registerNames: ['control', 'status'],
-				message:
-					'Duplicate enum identifier "mode_e" also used in registers "control" and "status".',
-			},
-		]);
-		expect(enumIdentifierErrors(document, modeField)).toEqual([
-			'Duplicate enum identifier "mode_e" also used in register "status".',
-		]);
-		expect(registerEnumIdentifierErrors(document, document.registers[1])).toEqual([
-			'Duplicate enum identifier "mode_e" also used in register "control".',
-		]);
-		expect(enumIdentifierErrors(document, emptyEnumNameField)).toEqual([]);
+		expect(documentIdentifierIssues(document)).toEqual([]);
+		await expect(Effect.runPromise(validateRdlDocument(document))).resolves.toBe(document);
 	});
 
 	it('reports duplicate register addresses', () => {

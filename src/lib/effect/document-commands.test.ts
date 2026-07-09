@@ -307,7 +307,7 @@ describe('document command effects', () => {
 		expect(writes).toEqual([]);
 	});
 
-	it('rejects duplicate enum identifiers instead of writing', async () => {
+	it('allows duplicate enum identifiers when saving as a normalized document', async () => {
 		const writes: string[] = [];
 		const document: RdlDocument = {
 			...createBlankDocument(),
@@ -375,16 +375,17 @@ describe('document command effects', () => {
 				saveDocument({
 					document,
 					currentPath: '/tmp/top.rdl',
-					saveAs: false,
+					saveAs: true,
 					suggestedPath: 'top.rdl',
 				}).pipe(
 					Effect.provide(
 						Layer.succeed(
 							DesktopBridge,
 							desktopMock({
-								saveRdlFile: (path, content) =>
+								saveRdlFileAs: (content, suggestedPath) =>
 									Effect.sync(() => {
-										writes.push(`${path}:${content}`);
+										writes.push(`${suggestedPath}:${content}`);
+										return { path: '/tmp/copy.rdl' };
 									}),
 							}),
 						),
@@ -393,8 +394,12 @@ describe('document command effects', () => {
 			),
 		);
 
-		expect(result._tag).toBe('Left');
-		expect(writes).toEqual([]);
+		expect(result._tag).toBe('Right');
+		if (result._tag === 'Left') throw result.left;
+		expect(result.right).toEqual({ path: '/tmp/copy.rdl', saved: true });
+		expect(writes).toHaveLength(1);
+		expect(writes[0]).toContain('top.rdl:');
+		expect(writes[0].match(/enum mode_e/g) ?? []).toHaveLength(2);
 	});
 
 	it('opens parser documents without source metadata', async () => {
