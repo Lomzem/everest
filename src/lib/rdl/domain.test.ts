@@ -1,3 +1,7 @@
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { Effect } from 'effect';
 import { buildBitCells, buildBitSegments } from './bit-layout';
@@ -17,7 +21,14 @@ import {
 	buildReservedAddressChildren,
 	normalizeHierarchyGroups,
 } from './hierarchy';
-import { createBlankDocument, createDefaultField, type Field, type Register } from './model';
+import {
+	createBlankDocument,
+	createDefaultField,
+	createMockDocument,
+	type Field,
+	type RdlDocument,
+	type Register,
+} from './model';
 import { sortRegisterFields, sortRegistersByAddress } from './mutations';
 import { decodeRdlDocument, validateRdlDocument } from './schema';
 import {
@@ -68,6 +79,49 @@ function withoutRegisterBlock(content: string, registerName: string) {
 
 function registerBlockOrder(content: string) {
 	return [...content.matchAll(/^ {4}} ([A-Za-z_][A-Za-z0-9_]*) @ /gm)].map((match) => match[1]);
+}
+
+function currentPlatformParserSidecar() {
+	if (process.platform !== 'linux' || process.arch !== 'x64') return undefined;
+	const parserPath = resolve('src-tauri/binaries/rdl-parser-x86_64-unknown-linux-gnu');
+	return existsSync(parserPath) ? parserPath : undefined;
+}
+
+const rdlParserSidecar = currentPlatformParserSidecar();
+const parserSidecarIt = rdlParserSidecar ? it : it.skip;
+
+async function parseExportedRdl(content: string) {
+	if (!rdlParserSidecar) throw new Error('RDL parser sidecar is unavailable.');
+
+	const directory = mkdtempSync(join(tmpdir(), 'everest-rdl-roundtrip-'));
+	const path = join(directory, 'top.rdl');
+	try {
+		writeFileSync(path, content, 'utf8');
+		const result = spawnSync(rdlParserSidecar, [path], { encoding: 'utf8' });
+		expect(result.stderr).toBe('');
+		expect(result.status).toBe(0);
+
+		const parsed = JSON.parse(result.stdout) as { document: unknown };
+		return await Effect.runPromise(decodeRdlDocument(parsed.document));
+	} finally {
+		rmSync(directory, { recursive: true, force: true });
+	}
+}
+
+async function roundTripExport(document: RdlDocument) {
+	const before = exportRdlDocument(document);
+	const reopened = await parseExportedRdl(before);
+	const after = exportRdlDocument(reopened);
+	return { before, after, reopened };
+}
+
+function changedLines(before: string, after: string) {
+	const beforeLines = before.split('\n');
+	const afterLines = after.split('\n');
+	return Array.from({ length: Math.max(beforeLines.length, afterLines.length) }, (_, index) => ({
+		before: beforeLines[index],
+		after: afterLines[index],
+	})).filter((change) => change.before !== change.after);
 }
 
 describe('RDL domain helpers', () => {
@@ -576,6 +630,156 @@ describe('RDL domain helpers', () => {
 				registers: [createTestRegister({ fields: [field] })],
 			}),
 		).toContain('reset = mode_e::ON;');
+	});
+
+	parserSidecarIt(
+		'round-trips the mock document export through the parser byte-for-byte',
+		async () => {
+			const { before, after } = await roundTripExport(createMockDocument());
+
+			expect(after).toBe(before);
+			expect(before).toContain('reset = hdmi_input_control_audio_src_e::ON;');
+		},
+	);
+
+	parserSidecarIt('round-trips mixed canonical RDL through the parser byte-for-byte', async () => {
+		const document: RdlDocument = {
+			...createBlankDocument(),
+			deviceName: 'top',
+			blockName: 'top',
+			addrmapName: 'top',
+			title: 'Top "Quoted" \\ Device',
+			desc: 'Top line 1\nTop line 2',
+			registers: [
+				createTestRegister({
+					id: 'wide',
+					name: 'wide',
+					title: 'Wide Register',
+					desc: 'Wide register.',
+					address: 4,
+					width: 32,
+					group: 'Control/Wide',
+					fields: [
+						{
+							...createDefaultField('wide-mode'),
+							name: 'mode',
+							title: 'Mode "Quoted" \\ Field',
+							desc: 'Field line 1\nField line 2',
+							msb: 3,
+							lsb: 0,
+							reset: 1,
+							resetEnumValueId: 'wide-mode-on',
+							enumName: 'mode_e',
+							values: [
+								{ id: 'wide-mode-off', name: 'OFF', value: 0, desc: 'Off' },
+								{ id: 'wide-mode-on', name: 'ON', value: 1, desc: 'On' },
+							],
+						},
+					],
+				}),
+				createTestRegister({
+					id: 'control',
+					name: 'control',
+					title: 'Control',
+					desc: 'Control register.',
+					address: 0,
+					group: 'Control',
+					fields: [
+						{
+							...createDefaultField('control-enable'),
+							name: 'enable',
+							title: 'Enable',
+							desc: 'Enable field.',
+							msb: 0,
+							lsb: 0,
+						},
+					],
+				}),
+			],
+		};
+		const { before, after } = await roundTripExport(document);
+
+		expect(after).toBe(before);
+	});
+
+	parserSidecarIt('keeps a reopened description edit to one exported line', async () => {
+		const document = {
+			...createBlankDocument(),
+			addrmapName: 'top',
+			registers: [
+				createTestRegister({
+					id: 'control',
+					name: 'control',
+					title: 'Control',
+					desc: 'Control register.',
+					address: 0,
+				}),
+			],
+		};
+		const { before, reopened } = await roundTripExport(document);
+		const edited = {
+			...reopened,
+			registers: reopened.registers.map((register) =>
+				register.id === 'control' ? { ...register, desc: 'Control register edited.' } : register,
+			),
+		};
+
+		expect(changedLines(before, exportRdlDocument(edited))).toEqual([
+			{
+				before: '        desc = "Control register.";',
+				after: '        desc = "Control register edited.";',
+			},
+		]);
+	});
+
+	parserSidecarIt('keeps a reopened enum reset edit to one exported line', async () => {
+		const document = {
+			...createBlankDocument(),
+			addrmapName: 'top',
+			registers: [
+				createTestRegister({
+					id: 'control',
+					name: 'control',
+					title: 'Control',
+					desc: 'Control register.',
+					address: 0,
+					fields: [
+						{
+							...createDefaultField('control-mode'),
+							name: 'mode',
+							title: 'Mode',
+							desc: '',
+							reset: 0,
+							resetEnumValueId: 'control-mode-off',
+							enumName: 'mode_e',
+							values: [
+								{ id: 'control-mode-off', name: 'OFF', value: 0, desc: 'Off' },
+								{ id: 'control-mode-on', name: 'ON', value: 1, desc: 'On' },
+							],
+						},
+					],
+				}),
+			],
+		};
+		const { before, reopened } = await roundTripExport(document);
+		const edited = {
+			...reopened,
+			registers: reopened.registers.map((register) => ({
+				...register,
+				fields: register.fields.map((field) =>
+					field.id === 'control-mode'
+						? { ...field, reset: 1, resetEnumValueId: 'control-mode-on' }
+						: field,
+				),
+			})),
+		};
+
+		expect(changedLines(before, exportRdlDocument(edited))).toEqual([
+			{
+				before: '            reset = mode_e::OFF;',
+				after: '            reset = mode_e::ON;',
+			},
+		]);
 	});
 
 	it('exports normalized RDL with spaces and explicit mixed register widths', () => {

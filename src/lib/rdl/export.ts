@@ -1,25 +1,29 @@
 import type { Access, Field, RdlDocument, Register } from './model';
 import { sortRegistersByAddress } from './mutations';
+import { normalizeRdlDocument } from './normalize';
 
 const indent = '    ';
 const defaultRegisterWidth = 8;
 
 export function exportRdlDocument(document: RdlDocument): string {
+	const normalizedDocument = normalizeRdlDocument(document);
 	const lines: string[] = [
 		'property doc_group {',
 		`${indent}type = string;`,
 		`${indent}component = reg;`,
 		'};',
 		'',
-		`addrmap ${rdlIdentifier(document.addrmapName, 'addrmap')} {`,
-		`${indent}name = ${rdlString(document.title || document.deviceName)};`,
-		`${indent}desc = ${rdlString(document.desc || document.title || document.deviceName)};`,
+		`addrmap ${rdlIdentifier(normalizedDocument.addrmapName, 'addrmap')} {`,
+		`${indent}name = ${rdlString(normalizedDocument.title || normalizedDocument.deviceName)};`,
+		`${indent}desc = ${rdlString(
+			normalizedDocument.desc || normalizedDocument.title || normalizedDocument.deviceName,
+		)};`,
 		`${indent}default regwidth = ${defaultRegisterWidth};`,
 		`${indent}default sw = r;`,
 		`${indent}default hw = rw;`,
 	];
 
-	for (const register of sortRegistersByAddress(document.registers)) {
+	for (const register of sortRegistersByAddress(normalizedDocument.registers)) {
 		lines.push(...exportRegister(register));
 	}
 

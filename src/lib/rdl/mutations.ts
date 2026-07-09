@@ -1,6 +1,6 @@
 import type { EnumValue, Field, Register } from './model';
 
-export function sortRegisterFields(fields: Field[]) {
+export function sortRegisterFields<T extends { msb: number }>(fields: readonly T[]) {
 	return [...fields].sort((a, b) => b.msb - a.msb);
 }
 

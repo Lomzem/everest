@@ -1,5 +1,6 @@
 import { Data, Effect, Schema } from 'effect';
-import { normalizeBitColor, resolvedResetEnumValueId, type RdlDocument } from './model';
+import type { RdlDocument } from './model';
+import { normalizeRdlDocument } from './normalize';
 import { documentIdentifierIssues } from './validation';
 
 export class DocumentValidationFailed extends Data.TaggedError('DocumentValidationFailed')<{
@@ -65,24 +66,7 @@ export function decodeRdlDocument(
 	input: unknown,
 ): Effect.Effect<RdlDocument, DocumentValidationFailed> {
 	return Schema.decodeUnknown(RdlDocumentSchema)(input).pipe(
-		Effect.map((document) => ({
-			...document,
-			hierarchyGroups: document.hierarchyGroups.map((group) => ({ ...group })),
-			registers: document.registers.map((register) => ({
-				...register,
-				fields: register.fields.map((field) => {
-					const normalizedField = {
-						...field,
-						color: normalizeBitColor(field.color),
-						values: field.values.map((value) => ({ ...value })),
-					};
-					return {
-						...normalizedField,
-						resetEnumValueId: resolvedResetEnumValueId(normalizedField),
-					};
-				}),
-			})),
-		})),
+		Effect.map(normalizeRdlDocument),
 		Effect.mapError(
 			(cause) =>
 				new DocumentValidationFailed({ message: 'The RDL document shape is invalid.', cause }),

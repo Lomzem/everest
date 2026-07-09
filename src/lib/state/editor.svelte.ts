@@ -34,7 +34,6 @@ import {
 	groupForPath,
 	groupIdsForPath,
 	groupsForRegisters,
-	normalizeHierarchyGroups,
 	registerByteWidth,
 	rootBlockId,
 	type AppView,
@@ -45,11 +44,11 @@ import {
 	sortFieldEnumValues,
 	sortRegisterFields,
 	sortRegistersByAddress,
-	sortRegistersFields,
 	updateEnumValue as updateEnumValueInRegisters,
 	updateField as updateFieldInRegisters,
 	updateRegister as updateRegisterInRegisters,
 } from '$lib/rdl/mutations';
+import { normalizeRdlDocument } from '$lib/rdl/normalize';
 import { searchRegisters } from '$lib/rdl/search';
 import { diagnostics } from './diagnostics.svelte';
 import { ui } from './ui.svelte';
@@ -147,12 +146,7 @@ export class EditorState {
 	}
 
 	applyDocument(document: RdlDocument, path: string, nextDirty: boolean) {
-		const registers = sortRegistersFields(document.registers);
-		this.document = {
-			...document,
-			registers,
-			hierarchyGroups: normalizeHierarchyGroups(document.hierarchyGroups, registers),
-		};
+		this.document = normalizeRdlDocument(document);
 		this.currentPath = path;
 		this.clearHistory();
 		this.selectedRegisterId = '';
@@ -259,12 +253,7 @@ export class EditorState {
 		const before = this.document;
 		const selectionBefore = this.selectionSnapshot();
 		const dirtyBefore = this.dirty;
-		const registers = sortRegistersFields(document.registers);
-		this.document = {
-			...document,
-			registers,
-			hierarchyGroups: normalizeHierarchyGroups(document.hierarchyGroups, registers),
-		};
+		this.document = normalizeRdlDocument(document);
 		this.markDirty();
 		if (!this.groupedEdit) {
 			this.pushHistory({
@@ -290,10 +279,7 @@ export class EditorState {
 		selection: SelectionSnapshot,
 		nextDirty: boolean,
 	) {
-		this.document = {
-			...document,
-			hierarchyGroups: normalizeHierarchyGroups(document.hierarchyGroups, document.registers),
-		};
+		this.document = normalizeRdlDocument(document);
 		this.selectedKind = selection.selectedKind;
 		this.selectedRegisterId = selection.selectedRegisterId;
 		this.selectedGroupPath = selection.selectedGroupPath;
@@ -373,13 +359,7 @@ export class EditorState {
 		const session = readPersistedEditorSession();
 		if (!session || session.appView !== 'editor') return false;
 
-		this.document = {
-			...session.document,
-			hierarchyGroups: normalizeHierarchyGroups(
-				session.document.hierarchyGroups,
-				session.document.registers,
-			),
-		};
+		this.document = normalizeRdlDocument(session.document);
 		this.currentPath = session.currentPath;
 		this.dirty = session.dirty;
 		this.undoStack = session.undoStack;
