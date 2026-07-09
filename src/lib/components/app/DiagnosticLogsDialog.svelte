@@ -17,39 +17,15 @@
 </script>
 
 <Dialog.Root bind:open={diagnostics.open}>
-	<Dialog.Content class="max-h-[85vh] max-w-3xl text-base">
+	<Dialog.Content
+		class="max-h-[85vh] w-[min(calc(100vw-2rem),72rem)] overflow-hidden text-base sm:max-w-none"
+	>
 		<Dialog.Header>
-			<div class="flex items-start justify-between gap-4 pr-6">
-				<div class="min-w-0 space-y-1">
-					<Dialog.Title class="text-base">Diagnostics</Dialog.Title>
-					<Dialog.Description class="break-all text-base">
-						{diagnostics.path || 'No diagnostics path loaded'}
-					</Dialog.Description>
-				</div>
-				<div class="flex shrink-0 items-center gap-2">
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						class="text-base"
-						disabled={diagnostics.loading}
-						onclick={() => diagnostics.refresh()}
-					>
-						<RefreshCw class="size-4" />
-						Refresh
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						class="text-base"
-						disabled={diagnostics.loading || diagnostics.entries.length === 0}
-						onclick={() => diagnostics.clear()}
-					>
-						<Trash2 class="size-4" />
-						Clear
-					</Button>
-				</div>
+			<div class="min-w-0 space-y-1 pr-6">
+				<Dialog.Title class="text-base">Diagnostics</Dialog.Title>
+				<Dialog.Description class="break-all text-base">
+					{diagnostics.path || 'No diagnostics path loaded'}
+				</Dialog.Description>
 			</div>
 		</Dialog.Header>
 
@@ -68,7 +44,7 @@
 			</p>
 		{/if}
 
-		<ScrollArea class="h-[50vh] rounded-md border bg-muted/20">
+		<ScrollArea class="h-[60vh] min-h-0 overflow-hidden rounded-md border bg-muted/20">
 			{#if diagnostics.loading}
 				<p class="p-4 text-base text-muted-foreground">Loading diagnostics...</p>
 			{:else if diagnostics.entries.length === 0}
@@ -76,25 +52,52 @@
 			{:else}
 				<ol class="divide-y">
 					{#each diagnostics.entries as entry (`${entry.timestamp}:${entry.source}:${entry.message}`)}
-						<li class="space-y-2 p-4">
-							<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-								<span class="font-mono text-base text-muted-foreground">
+						<li class="min-w-0 space-y-2 p-4">
+							<div class="grid min-w-0 gap-2 sm:grid-cols-[auto_auto_1fr] sm:items-center">
+								<span class="font-mono text-base whitespace-nowrap text-muted-foreground">
 									{formatTimestamp(entry.timestamp)}
 								</span>
-								<span class="rounded-md bg-destructive/10 px-2 py-1 text-base text-destructive">
+								<span
+									class="w-fit rounded-md bg-destructive/10 px-2 py-1 text-base text-destructive"
+								>
 									{entry.level}
 								</span>
-								<span class="font-mono text-base text-muted-foreground">{entry.source}</span>
+								<span class="min-w-0 break-all font-mono text-base text-muted-foreground">
+									{entry.source}
+								</span>
 							</div>
-							<p class="text-base">{entry.message}</p>
+							<p class="break-words text-base">{entry.message}</p>
 							{#if entry.details}
 								<pre
-									class="whitespace-pre-wrap break-words font-mono text-base text-muted-foreground">{entry.details}</pre>
+									class="max-w-full whitespace-pre-wrap break-words font-mono text-base text-muted-foreground">{entry.details}</pre>
 							{/if}
 						</li>
 					{/each}
 				</ol>
 			{/if}
 		</ScrollArea>
+
+		<Dialog.Footer>
+			<Button
+				type="button"
+				variant="outline"
+				class="text-base"
+				disabled={diagnostics.loading}
+				onclick={() => diagnostics.refresh()}
+			>
+				<RefreshCw class="size-4" />
+				Refresh
+			</Button>
+			<Button
+				type="button"
+				variant="outline"
+				class="text-base"
+				disabled={diagnostics.loading || diagnostics.entries.length === 0}
+				onclick={() => diagnostics.clear()}
+			>
+				<Trash2 class="size-4" />
+				Clear
+			</Button>
+		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
