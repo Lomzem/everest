@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { Edit3, Trash2 } from '@lucide/svelte';
+	import { Edit3, GripVertical, Trash2 } from '@lucide/svelte';
+	import { dragHandle } from 'svelte-dnd-action';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as ContextMenu from '$lib/components/ui/context-menu';
 	import type { Register } from '$lib/rdl/model';
 	import { formatAddress } from '$lib/rdl/format';
 	import { registerIdentifierErrors } from '$lib/rdl/validation';
 	import { editor } from '$lib/state/editor.svelte';
-	import { ui } from '$lib/state/ui.svelte';
 	import HighlightedText from './HighlightedText.svelte';
 
 	let { register }: { register: Register } = $props();
@@ -23,32 +23,17 @@
 				editor.selectedKind === 'register' && register.id === editor.selectedRegister.id
 					? 'bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring'
 					: 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-			} ${ui.draggedRegisterId === register.id ? 'opacity-50' : ''} ${
-				ui.dragOverRegisterId === register.id && ui.dragOverRegisterPosition === 'before'
-					? 'border-t-2 border-t-blue-500'
-					: ''
-			} ${
-				ui.dragOverRegisterId === register.id && ui.dragOverRegisterPosition === 'after'
-					? 'border-b-2 border-b-blue-500'
-					: ''
 			}`}
-			draggable={true}
-			ondragstart={(event) => ui.beginRegisterDrag(event, register.id)}
-			ondragend={() => ui.finishRegisterDrag()}
-			ondragover={(event) => {
-				ui.dragRegisterOverRegister(event, register.id);
-			}}
-			ondragleave={() => {
-				if (ui.dragOverRegisterId === register.id) {
-					ui.dragOverRegisterId = '';
-					ui.dragOverRegisterPosition = '';
-				}
-			}}
-			ondrop={(event) => {
-				editor.dropRegisterOnRegister(event, register);
-			}}
 			role="listitem"
 		>
+			<span
+				class="ml-1 inline-flex size-6 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground opacity-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus:opacity-100 group-hover:opacity-100"
+				use:dragHandle
+				aria-label={`Move ${label}`}
+				title="Move"
+			>
+				<GripVertical size={14} />
+			</span>
 			<button
 				class="relative min-w-0 w-full px-2 py-2 pr-14 text-left"
 				onclick={() => editor.selectRegister(register.id)}

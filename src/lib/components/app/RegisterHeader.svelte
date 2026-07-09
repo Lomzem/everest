@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { MoveRight } from '@lucide/svelte';
 	import { accessOptions, editor, textInput } from '$lib/state/editor.svelte';
 	import type { Access } from '$lib/rdl/model';
 	import {
@@ -12,8 +13,12 @@
 		registerAddressErrors,
 		registerIdentifierErrors,
 	} from '$lib/rdl/validation';
+	import { Button } from '$lib/components/ui/button';
 	import * as Select from '$lib/components/ui/select';
 	import EditorBreadcrumbs from './EditorBreadcrumbs.svelte';
+	import MoveToFolderDialog from './MoveToFolderDialog.svelte';
+
+	let moveDialogOpen = $state(false);
 
 	const registerIdErrors = $derived([
 		...identifierErrors(editor.selectedRegister.name, 'Register ID'),
@@ -86,6 +91,15 @@
 					</span>
 				</label>
 				<div class="flex items-center gap-3">
+					<Button
+						variant="outline"
+						size="sm"
+						class="mt-6 text-primary"
+						onclick={() => (moveDialogOpen = true)}
+					>
+						<MoveRight size={14} />
+						Move
+					</Button>
 					<div class="space-y-1">
 						<span class="text-base font-semibold uppercase tracking-normal text-muted-foreground"
 							>Default SW</span
@@ -193,3 +207,9 @@
 		</div>
 	</div>
 </div>
+
+<MoveToFolderDialog
+	bind:open={moveDialogOpen}
+	kind="register"
+	itemId={editor.selectedRegister.id}
+/>

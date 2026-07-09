@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopApi } from '$lib/desktop-api';
 import { RdlParseFailed } from '$lib/effect/desktop';
+import { folderDndId, registerDndId } from '$lib/rdl/hierarchy';
 import type { RdlDocument } from '$lib/rdl/model';
 import { registerAddressErrors } from '$lib/rdl/validation';
 import { EditorState } from './editor.svelte';
@@ -378,6 +379,124 @@ describe('EditorState derived names', () => {
 		expect(state.document.registers.some((register) => register.id === registerId)).toBe(true);
 	});
 
+	it('moves a register between folders without reordering registers', () => {
+		const state = new EditorState();
+		state.applyDocument(moveDocument(), '/tmp/top.rdl', false);
+		state.selectRegister('status');
+
+		state.moveRegisterToGroup('status', 'Control');
+
+		expect(state.document.registers.map((register) => register.id)).toEqual([
+			'control',
+			'status',
+			'nested',
+		]);
+		expect(state.document.registers.find((register) => register.id === 'status')?.group).toBe(
+			'Control',
+		);
+		expect(state.selectedGroupPath).toBe('Control');
+
+		state.undo();
+		expect(state.document.registers.find((register) => register.id === 'status')?.group).toBe(
+			'Status',
+		);
+		expect(state.selectedRegisterId).toBe('status');
+
+		state.redo();
+		expect(state.document.registers.find((register) => register.id === 'status')?.group).toBe(
+			'Control',
+		);
+	});
+
+	it('moves a folder and rewrites descendant folder and register paths', () => {
+		const state = new EditorState();
+		state.applyDocument(moveDocument(), '/tmp/top.rdl', false);
+		state.selectGroup('Status/Nested');
+
+		state.moveGroupToGroup('status', 'Control');
+
+		expect(state.document.hierarchyGroups.map((group) => group.path)).toEqual([
+			'Control',
+			'Control/Status',
+			'Control/Status/Nested',
+		]);
+		expect(state.document.registers.find((register) => register.id === 'status')?.group).toBe(
+			'Control/Status',
+		);
+		expect(state.document.registers.find((register) => register.id === 'nested')?.group).toBe(
+			'Control/Status/Nested',
+		);
+		expect(state.selectedGroupPath).toBe('Control/Status/Nested');
+
+		state.undo();
+		expect(state.document.hierarchyGroups.map((group) => group.path)).toEqual([
+			'Control',
+			'Status',
+			'Status/Nested',
+		]);
+		expect(state.selectedGroupPath).toBe('Status/Nested');
+	});
+
+	it('updates selected register group path when its folder moves', () => {
+		const state = new EditorState();
+		state.applyDocument(moveDocument(), '/tmp/top.rdl', false);
+		state.selectRegister('nested');
+
+		state.moveGroupToGroup('status', 'Control');
+
+		expect(state.selectedRegisterId).toBe('nested');
+		expect(state.selectedRegister.group).toBe('Control/Status/Nested');
+		expect(state.selectedGroupPath).toBe('Control/Status/Nested');
+	});
+
+	it('rejects moving a folder into itself, a descendant, or a colliding target path', () => {
+		const state = new EditorState();
+		state.applyDocument(moveDocument(), '/tmp/top.rdl', false);
+
+		expect(state.canMoveGroupToGroup('status', 'Status')).toBe(false);
+		expect(state.canMoveGroupToGroup('status', 'Status/Nested')).toBe(false);
+		expect(state.canMoveGroupToGroup('nested', 'Status')).toBe(false);
+
+		state.moveGroupToGroup('status', 'Status/Nested');
+		expect(state.document.hierarchyGroups.map((group) => group.path)).toEqual([
+			'Control',
+			'Status',
+			'Status/Nested',
+		]);
+		expect(state.canUndo).toBe(false);
+
+		state.applyDocument(
+			{
+				...moveDocument(),
+				hierarchyGroups: [
+					...moveDocument().hierarchyGroups,
+					{ id: 'control-status', label: 'Status', path: 'Control/Status' },
+				],
+			},
+			'/tmp/top.rdl',
+			false,
+		);
+		expect(state.canMoveGroupToGroup('status', 'Control')).toBe(false);
+	});
+
+	it('finalizes hierarchy dnd drops through prefixed item IDs', () => {
+		const state = new EditorState();
+		state.applyDocument(moveDocument(), '/tmp/top.rdl', false);
+
+		state.moveHierarchyItemToGroup(registerDndId('status'), 'Control');
+		expect(state.document.registers.find((register) => register.id === 'status')?.group).toBe(
+			'Control',
+		);
+
+		state.moveHierarchyItemToGroup(folderDndId('nested'), 'Control');
+		expect(state.document.hierarchyGroups.find((group) => group.id === 'nested')?.path).toBe(
+			'Control/Nested',
+		);
+		expect(state.document.registers.find((register) => register.id === 'nested')?.group).toBe(
+			'Control/Nested',
+		);
+	});
+
 	it('undoes deleting an enum value and restores reset enum reference', async () => {
 		const state = new EditorState();
 		state.applyDocument(enumResetDocument(), '/tmp/top.rdl', false);
@@ -637,6 +756,47 @@ function sourceDocument(): RdlDocument {
 						color: '',
 					},
 				],
+			},
+		],
+	};
+}
+
+function moveDocument(): RdlDocument {
+	return {
+		deviceName: 'top',
+		blockName: 'top',
+		addrmapName: 'top',
+		title: 'top',
+		desc: '',
+		hierarchyGroups: [
+			{ id: 'control-group', label: 'Control', path: 'Control' },
+			{ id: 'status', label: 'Status', path: 'Status' },
+			{ id: 'nested', label: 'Nested', path: 'Status/Nested' },
+		],
+		registers: [
+			{
+				...sourceDocument().registers[0],
+				id: 'control',
+				name: 'control',
+				title: 'Control',
+				group: 'Control',
+				address: 0,
+			},
+			{
+				...sourceDocument().registers[0],
+				id: 'status',
+				name: 'status',
+				title: 'Status',
+				group: 'Status',
+				address: 1,
+			},
+			{
+				...sourceDocument().registers[0],
+				id: 'nested',
+				name: 'nested',
+				title: 'Nested',
+				group: 'Status/Nested',
+				address: 2,
 			},
 		],
 	};

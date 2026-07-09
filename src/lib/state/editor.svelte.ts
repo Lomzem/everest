@@ -20,7 +20,6 @@ import {
 	createBlankDocument,
 	type EnumValue,
 	type Field,
-	type HierarchyGroup,
 	type RdlDocument,
 	type Register,
 } from '$lib/rdl/model';
@@ -29,14 +28,17 @@ import {
 	basename,
 	buildFolderChildren,
 	buildGroupCrumbs,
+	buildHierarchyDndItems,
 	buildHierarchyChildren,
 	emptyRegister,
 	groupForPath,
 	groupIdsForPath,
+	parentGroupPath,
 	groupsForRegisters,
 	registerByteWidth,
 	rootBlockId,
 	type AppView,
+	type HierarchyDndItem,
 	type SelectionKind,
 } from '$lib/rdl/hierarchy';
 import { deriveIdentifier, fieldBitWidth, parseEditableValue, range } from '$lib/rdl/format';
@@ -131,6 +133,13 @@ export class EditorState {
 
 	folderChildren(groupPath: string) {
 		return buildHierarchyChildren(groupPath, this.visibleHierarchyGroups, this.filteredRegisters);
+	}
+
+	hierarchyDndItems(groupPath: string) {
+		return (
+			ui.hierarchyDragPreview[groupPath] ??
+			buildHierarchyDndItems(groupPath, this.document.hierarchyGroups, this.document.registers)
+		);
 	}
 
 	hierarchyGroupForPath(groupPath: string) {
@@ -546,33 +555,27 @@ export class EditorState {
 		this.persistSession();
 	}
 
-	dropRegisterOnGroup(event: DragEvent, group: HierarchyGroup) {
-		event.preventDefault();
-		event.stopPropagation();
-		this.moveRegisterToGroup(
-			event.dataTransfer?.getData('text/plain') || ui.draggedRegisterId,
-			group.path,
-		);
-		ui.finishRegisterDrag();
+	previewHierarchyDrop(groupPath: string, items: HierarchyDndItem[]) {
+		ui.previewHierarchyDrag(groupPath, items);
 	}
 
-	dropRegisterOnRoot(event: DragEvent) {
-		event.preventDefault();
-		event.stopPropagation();
-		this.moveRegisterToGroup(event.dataTransfer?.getData('text/plain') || ui.draggedRegisterId, '');
-		ui.finishRegisterDrag();
+	finalizeHierarchyDrop(groupPath: string, items: HierarchyDndItem[], itemId: string) {
+		ui.previewHierarchyDrag(groupPath, items);
+		if (!items.some((item) => item.id === itemId)) return;
+
+		this.moveHierarchyItemToGroup(itemId, groupPath);
+		ui.finishHierarchyDrag();
 	}
 
-	dropRegisterOnRegister(event: DragEvent, targetRegister: Register) {
-		event.preventDefault();
-		event.stopPropagation();
-		this.moveRegisterToGroup(
-			event.dataTransfer?.getData('text/plain') || ui.draggedRegisterId,
-			targetRegister.group,
-			targetRegister.id,
-			ui.dragOverRegisterPosition || 'after',
-		);
-		ui.finishRegisterDrag();
+	moveHierarchyItemToGroup(itemId: string, groupPath: string) {
+		if (itemId.startsWith('register:')) {
+			this.moveRegisterToGroup(itemId.slice('register:'.length), groupPath);
+			return;
+		}
+
+		if (itemId.startsWith('folder:')) {
+			this.moveGroupToGroup(itemId.slice('folder:'.length), groupPath);
+		}
 	}
 
 	moveRegisterToGroup(
@@ -583,6 +586,22 @@ export class EditorState {
 	) {
 		const moving = this.document.registers.find((register) => register.id === registerId);
 		if (!moving || moving.id === targetRegisterId) return;
+		if (!targetRegisterId && moving.group === groupPath) return;
+
+		if (!targetRegisterId) {
+			this.commitDocumentChange({
+				...this.document,
+				registers: this.document.registers.map((register) =>
+					register.id === registerId ? { ...register, group: groupPath } : register,
+				),
+			});
+
+			if (this.selectedKind === 'register' && this.selectedRegisterId === registerId) {
+				this.selectedGroupPath = groupPath;
+				this.revealGroupPath(groupPath);
+			}
+			return;
+		}
 
 		const nextRegister = { ...moving, group: groupPath };
 		const remaining = this.document.registers.filter((register) => register.id !== registerId);
@@ -603,6 +622,84 @@ export class EditorState {
 		if (this.selectedKind === 'register' && this.selectedRegisterId === registerId) {
 			this.selectedGroupPath = groupPath;
 		}
+	}
+
+	canMoveGroupToGroup(groupId: string, destinationPath: string) {
+		const moving = this.document.hierarchyGroups.find((group) => group.id === groupId);
+		if (!moving) return false;
+		if (destinationPath === moving.path || destinationPath.startsWith(`${moving.path}/`)) {
+			return false;
+		}
+
+		const currentParentPath = parentGroupPath(moving.path);
+		if (currentParentPath === destinationPath) return false;
+
+		const nextPath = destinationPath ? `${destinationPath}/${moving.label}` : moving.label;
+		return !this.document.hierarchyGroups.some(
+			(group) => group.id !== groupId && group.path === nextPath,
+		);
+	}
+
+	moveGroupToGroup(groupId: string, destinationPath: string) {
+		if (!this.canMoveGroupToGroup(groupId, destinationPath)) return;
+
+		const moving = this.document.hierarchyGroups.find((group) => group.id === groupId);
+		if (!moving) return;
+
+		const previousPath = moving.path;
+		const nextPath = destinationPath ? `${destinationPath}/${moving.label}` : moving.label;
+		const selectedRegisterGroupBefore = this.selectedRegister.group;
+		const rewritePath = (path: string) =>
+			path === previousPath || path.startsWith(`${previousPath}/`)
+				? `${nextPath}${path.slice(previousPath.length)}`
+				: path;
+
+		this.commitDocumentChange({
+			...this.document,
+			hierarchyGroups: this.document.hierarchyGroups.map((group) =>
+				group.path === previousPath || group.path.startsWith(`${previousPath}/`)
+					? { ...group, path: rewritePath(group.path) }
+					: group,
+			),
+			registers: this.document.registers.map((register) =>
+				register.group === previousPath || register.group.startsWith(`${previousPath}/`)
+					? { ...register, group: rewritePath(register.group) }
+					: register,
+			),
+		});
+
+		if (
+			this.selectedKind === 'folder' &&
+			(this.selectedGroupPath === previousPath ||
+				this.selectedGroupPath.startsWith(`${previousPath}/`))
+		) {
+			this.selectedGroupPath = rewritePath(this.selectedGroupPath);
+		}
+		if (
+			this.selectedKind === 'register' &&
+			(selectedRegisterGroupBefore === previousPath ||
+				selectedRegisterGroupBefore.startsWith(`${previousPath}/`))
+		) {
+			this.selectedGroupPath = rewritePath(selectedRegisterGroupBefore);
+		}
+		this.revealGroupPath(destinationPath);
+	}
+
+	currentGroupPathForMove(kind: SelectionKind, id: string) {
+		if (kind === 'register') {
+			return this.document.registers.find((register) => register.id === id)?.group ?? '';
+		}
+
+		const group = this.document.hierarchyGroups.find((item) => item.id === id);
+		return group ? parentGroupPath(group.path) : '';
+	}
+
+	moveTargetDisabled(kind: SelectionKind, id: string, destinationPath: string) {
+		if (kind === 'register') {
+			return this.currentGroupPathForMove(kind, id) === destinationPath;
+		}
+
+		return !this.canMoveGroupToGroup(id, destinationPath);
 	}
 
 	async addSubdir(parentPath = '') {

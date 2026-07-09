@@ -1,4 +1,5 @@
 import { SvelteSet } from 'svelte/reactivity';
+import type { HierarchyDndItem } from '$lib/rdl/hierarchy';
 import type { Register, ValueMode } from '$lib/rdl/model';
 import { rootBlockId } from '$lib/rdl/hierarchy';
 import { formatEditableValue } from '$lib/rdl/format';
@@ -21,10 +22,7 @@ export class UiState {
 	expandedFieldIds = $state(new SvelteSet<string>());
 	numericDrafts = $state<Record<string, string>>({});
 	renamingGroupId = $state('');
-	draggedRegisterId = $state('');
-	dragOverGroupId = $state('');
-	dragOverRegisterId = $state('');
-	dragOverRegisterPosition = $state<'before' | 'after' | ''>('');
+	hierarchyDragPreview = $state<Record<string, HierarchyDndItem[]>>({});
 	private removeSystemThemeListener?: () => void;
 	private searchInputTimer?: ReturnType<typeof setTimeout>;
 
@@ -69,7 +67,7 @@ export class UiState {
 		this.expandedFieldIds = new SvelteSet<string>();
 		this.numericDrafts = {};
 		this.renamingGroupId = '';
-		this.finishRegisterDrag();
+		this.finishHierarchyDrag();
 	}
 
 	toggleLeftCollapsed() {
@@ -158,41 +156,12 @@ export class UiState {
 		this.numericDrafts = rest;
 	}
 
-	beginRegisterDrag(event: DragEvent, registerId: string) {
-		this.draggedRegisterId = registerId;
-		event.dataTransfer?.setData('text/plain', registerId);
-		if (event.dataTransfer) {
-			event.dataTransfer.effectAllowed = 'move';
-		}
+	previewHierarchyDrag(groupPath: string, items: HierarchyDndItem[]) {
+		this.hierarchyDragPreview = { ...this.hierarchyDragPreview, [groupPath]: items };
 	}
 
-	finishRegisterDrag() {
-		this.draggedRegisterId = '';
-		this.dragOverGroupId = '';
-		this.dragOverRegisterId = '';
-		this.dragOverRegisterPosition = '';
-	}
-
-	dragRegisterOverGroup(event: DragEvent, groupId: string) {
-		if (!this.draggedRegisterId) return;
-		event.preventDefault();
-		event.stopPropagation();
-		if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-		this.dragOverGroupId = groupId;
-		this.dragOverRegisterId = '';
-		this.dragOverRegisterPosition = '';
-	}
-
-	dragRegisterOverRegister(event: DragEvent, registerId: string) {
-		if (!this.draggedRegisterId || this.draggedRegisterId === registerId) return;
-		event.preventDefault();
-		event.stopPropagation();
-		if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-		const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
-		this.dragOverRegisterId = registerId;
-		this.dragOverRegisterPosition =
-			event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after';
-		this.dragOverGroupId = '';
+	finishHierarchyDrag() {
+		this.hierarchyDragPreview = {};
 	}
 }
 

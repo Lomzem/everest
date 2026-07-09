@@ -97,19 +97,8 @@
 					class={`group flex items-center gap-1 rounded-md ${
 						editor.selectedKind === 'folder' && editor.selectedGroupPath === ''
 							? 'bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring'
-							: ui.dragOverGroupId === rootBlockId
-								? 'bg-sidebar-accent/70 ring-1 ring-sidebar-ring'
-								: ''
+							: ''
 					}`}
-					ondragover={(event) => {
-						ui.dragRegisterOverGroup(event, rootBlockId);
-					}}
-					ondragleave={() => {
-						if (ui.dragOverGroupId === rootBlockId) ui.dragOverGroupId = '';
-					}}
-					ondrop={(event) => {
-						editor.dropRegisterOnRoot(event);
-					}}
 					role="presentation"
 				>
 					<button

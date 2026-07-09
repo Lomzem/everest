@@ -1,10 +1,14 @@
 <script lang="ts">
-	import { Cpu, FolderPlus, FolderTree, Plus } from '@lucide/svelte';
+	import { Cpu, FolderPlus, FolderTree, MoveRight, Plus } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Empty from '$lib/components/ui/empty';
 	import { formatAddress } from '$lib/rdl/format';
+	import { rootBlockId } from '$lib/rdl/hierarchy';
 	import { editor, textInput } from '$lib/state/editor.svelte';
 	import EditorBreadcrumbs from './EditorBreadcrumbs.svelte';
+	import MoveToFolderDialog from './MoveToFolderDialog.svelte';
+
+	let moveDialogOpen = $state(false);
 
 	function reservedAddressLabel(address: number, endAddress: number) {
 		return address === endAddress
@@ -37,6 +41,17 @@
 				</label>
 			</div>
 			<div class="flex shrink-0 items-center gap-2">
+				{#if editor.selectedFolder.id !== rootBlockId}
+					<Button
+						variant="outline"
+						size="lg"
+						class="text-primary"
+						onclick={() => (moveDialogOpen = true)}
+					>
+						<MoveRight size={14} />
+						Move
+					</Button>
+				{/if}
 				<Button
 					variant="outline"
 					size="lg"
@@ -173,4 +188,12 @@
 			{/if}
 		</div>
 	</section>
+
+	{#if editor.selectedFolder.id !== rootBlockId}
+		<MoveToFolderDialog
+			bind:open={moveDialogOpen}
+			kind="folder"
+			itemId={editor.selectedFolder.id}
+		/>
+	{/if}
 {/if}
