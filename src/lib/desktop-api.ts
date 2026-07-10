@@ -47,6 +47,7 @@ export interface DesktopApi {
 	readonly readDiagnosticLogs: () => Promise<DiagnosticLogResult>;
 	readonly clearDiagnosticLogs: () => Promise<DiagnosticLogResult>;
 	readonly quitApplication?: () => Promise<void>;
+	readonly setZoom?: (scaleFactor: number) => Promise<void>;
 	readonly onMenuCommand: (callback: (command: MenuCommand) => void) => () => void;
 }
 

@@ -28,6 +28,7 @@ function desktopMock(overrides: Partial<DesktopBridgeService> = {}): DesktopBrid
 		readDiagnosticLogs: Effect.succeed({ path: '', content: '' }),
 		clearDiagnosticLogs: Effect.succeed({ path: '', content: '' }),
 		quitApplication: Effect.void,
+		setZoom: () => Effect.void,
 		...overrides,
 	};
 }

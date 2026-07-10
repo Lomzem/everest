@@ -2,6 +2,7 @@
 	import * as Menubar from '$lib/components/ui/menubar';
 	import { diagnostics } from '$lib/state/diagnostics.svelte';
 	import { editor } from '$lib/state/editor.svelte';
+	import { ui } from '$lib/state/ui.svelte';
 </script>
 
 <div class="shrink-0 border-b bg-background px-2 py-1 text-foreground">
@@ -52,6 +53,26 @@
 				<Menubar.Item class="text-base" disabled={!editor.canRedo} onclick={() => editor.redo()}>
 					Redo
 					<Menubar.Shortcut class="text-base tracking-normal">Ctrl+Y</Menubar.Shortcut>
+				</Menubar.Item>
+			</Menubar.Content>
+		</Menubar.Menu>
+
+		<Menubar.Menu>
+			<Menubar.Trigger class="text-base">View</Menubar.Trigger>
+			<Menubar.Content align="start" class="min-w-48">
+				<Menubar.Label class="text-base">Zoom {ui.zoomPercent}%</Menubar.Label>
+				<Menubar.Separator />
+				<Menubar.Item class="text-base" onclick={() => ui.zoomIn()}>
+					Zoom In
+					<Menubar.Shortcut class="text-base tracking-normal">Ctrl++</Menubar.Shortcut>
+				</Menubar.Item>
+				<Menubar.Item class="text-base" onclick={() => ui.zoomOut()}>
+					Zoom Out
+					<Menubar.Shortcut class="text-base tracking-normal">Ctrl+-</Menubar.Shortcut>
+				</Menubar.Item>
+				<Menubar.Item class="text-base" onclick={() => ui.resetZoom()}>
+					Reset Zoom
+					<Menubar.Shortcut class="text-base tracking-normal">Ctrl+0</Menubar.Shortcut>
 				</Menubar.Item>
 			</Menubar.Content>
 		</Menubar.Menu>

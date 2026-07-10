@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { getCurrentWebview } from '@tauri-apps/api/webview';
 import type {
 	DesktopApi,
 	DiagnosticLogEntry,
@@ -36,6 +37,7 @@ export function createTauriDesktopApi(): DesktopApi | undefined {
 		readDiagnosticLogs: () => invoke<DiagnosticLogResult>('read_diagnostic_logs'),
 		clearDiagnosticLogs: () => invoke<DiagnosticLogResult>('clear_diagnostic_logs'),
 		quitApplication: () => invoke<void>('quit_application'),
+		setZoom: (scaleFactor) => getCurrentWebview().setZoom(scaleFactor),
 		onMenuCommand: (callback) => {
 			const unlisten = listen<MenuCommand>('rdl:menu-command', (event) => callback(event.payload));
 			return () => {

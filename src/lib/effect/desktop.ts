@@ -38,6 +38,7 @@ export interface DesktopBridgeService {
 	readonly readDiagnosticLogs: Effect.Effect<DiagnosticLogResult, DesktopError>;
 	readonly clearDiagnosticLogs: Effect.Effect<DiagnosticLogResult, DesktopError>;
 	readonly quitApplication: Effect.Effect<void, DesktopError>;
+	readonly setZoom: (scaleFactor: number) => Effect.Effect<void, DesktopError>;
 }
 
 export class DesktopBridge extends Context.Tag('everest/DesktopBridge')<
@@ -175,6 +176,10 @@ export const DesktopBridgeLive = Layer.succeed(DesktopBridge, {
 	quitApplication: optionalInvoke('quitApplication', (desktopApi) =>
 		desktopApi.quitApplication ? desktopApi.quitApplication() : Promise.resolve(),
 	),
+	setZoom: (scaleFactor) =>
+		optionalInvoke('setZoom', (desktopApi) =>
+			desktopApi.setZoom ? desktopApi.setZoom(scaleFactor) : Promise.resolve(),
+		),
 });
 
 export function subscribeMenuCommand(callback: (command: string) => void) {

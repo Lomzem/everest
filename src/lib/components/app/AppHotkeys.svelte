@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { createHotkeys } from '@tanstack/svelte-hotkeys';
 	import { editor } from '$lib/state/editor.svelte';
+	import { ui } from '$lib/state/ui.svelte';
 
 	createHotkeys(() => [
 		{
@@ -53,6 +54,27 @@
 			callback: () => editor.redo(),
 			options: {
 				enabled: editor.appView === 'editor' && editor.canRedo,
+				preventDefault: true,
+			},
+		},
+		{
+			hotkey: 'Mod+=',
+			callback: () => ui.zoomIn(),
+			options: {
+				preventDefault: true,
+			},
+		},
+		{
+			hotkey: 'Mod+-',
+			callback: () => ui.zoomOut(),
+			options: {
+				preventDefault: true,
+			},
+		},
+		{
+			hotkey: 'Mod+0',
+			callback: () => ui.resetZoom(),
+			options: {
 				preventDefault: true,
 			},
 		},

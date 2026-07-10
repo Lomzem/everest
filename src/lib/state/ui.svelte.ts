@@ -1,12 +1,20 @@
 import { SvelteSet } from 'svelte/reactivity';
+import { Effect } from 'effect';
 import type { Register, ValueMode } from '$lib/rdl/model';
 import { rootBlockId } from '$lib/rdl/hierarchy';
 import { formatEditableValue } from '$lib/rdl/format';
+import { DesktopBridge } from '$lib/effect/desktop';
+import { effectErrorMessage, runAppEffect } from '$lib/effect/run';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
 const themeStorageKey = 'everest.theme';
+const zoomStorageKey = 'everest.zoom';
 const themeModes = new Set<ThemeMode>(['light', 'dark', 'system']);
+const defaultZoomPercent = 100;
+const minZoomPercent = 70;
+const maxZoomPercent = 200;
+const zoomStepPercent = 10;
 
 const isThemeMode = (value: string | null): value is ThemeMode =>
 	value !== null && themeModes.has(value as ThemeMode);
@@ -16,6 +24,7 @@ export class UiState {
 	searchText = $state('');
 	valueMode = $state<ValueMode>('hex');
 	themeMode = $state<ThemeMode>('system');
+	zoomPercent = $state(defaultZoomPercent);
 	leftCollapsed = $state(false);
 	expandedBlocks = $state(new SvelteSet([rootBlockId]));
 	expandedFieldIds = $state(new SvelteSet<string>());
@@ -23,6 +32,11 @@ export class UiState {
 	renamingGroupId = $state('');
 	private removeSystemThemeListener?: () => void;
 	private searchInputTimer?: ReturnType<typeof setTimeout>;
+
+	initializeAppearance() {
+		this.initializeTheme();
+		this.initializeZoom();
+	}
 
 	initializeTheme() {
 		if (typeof window === 'undefined') return;
@@ -49,6 +63,52 @@ export class UiState {
 			window.localStorage.setItem(themeStorageKey, themeMode);
 		}
 		this.applyTheme();
+	}
+
+	initializeZoom() {
+		if (typeof window === 'undefined') return;
+
+		this.zoomPercent = normalizeZoomPercent(window.localStorage.getItem(zoomStorageKey));
+		void this.applyZoom();
+	}
+
+	setZoomPercent(value: number) {
+		this.zoomPercent = clampZoomPercent(value);
+		this.persistZoom();
+		void this.applyZoom();
+	}
+
+	zoomIn() {
+		this.setZoomPercent(this.zoomPercent + zoomStepPercent);
+	}
+
+	zoomOut() {
+		this.setZoomPercent(this.zoomPercent - zoomStepPercent);
+	}
+
+	resetZoom() {
+		this.setZoomPercent(defaultZoomPercent);
+	}
+
+	private persistZoom() {
+		if (typeof window === 'undefined') return;
+		window.localStorage.setItem(zoomStorageKey, String(this.zoomPercent));
+	}
+
+	private async applyZoom() {
+		if (typeof window === 'undefined') return;
+		const scaleFactor = this.zoomPercent / 100;
+
+		try {
+			await runAppEffect(
+				Effect.gen(function* () {
+					const desktop = yield* DesktopBridge;
+					yield* desktop.setZoom(scaleFactor);
+				}),
+			);
+		} catch (error) {
+			console.warn(`Unable to apply zoom: ${effectErrorMessage(error)}`);
+		}
 	}
 
 	private applyTheme() {
@@ -152,6 +212,16 @@ export class UiState {
 		delete rest[key];
 		this.numericDrafts = rest;
 	}
+}
+
+function clampZoomPercent(value: number) {
+	if (!Number.isFinite(value)) return defaultZoomPercent;
+	return Math.min(maxZoomPercent, Math.max(minZoomPercent, Math.round(value)));
+}
+
+function normalizeZoomPercent(value: string | null) {
+	if (value === null) return defaultZoomPercent;
+	return clampZoomPercent(Number(value));
 }
 
 export const ui = new UiState();

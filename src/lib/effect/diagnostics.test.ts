@@ -36,6 +36,7 @@ function desktopMock(overrides: Partial<DesktopBridgeService> = {}): DesktopBrid
 		readDiagnosticLogs: Effect.fail(new DesktopUnavailable({ operation: 'readDiagnosticLogs' })),
 		clearDiagnosticLogs: Effect.fail(new DesktopUnavailable({ operation: 'clearDiagnosticLogs' })),
 		quitApplication: Effect.void,
+		setZoom: () => Effect.void,
 		...overrides,
 	};
 }

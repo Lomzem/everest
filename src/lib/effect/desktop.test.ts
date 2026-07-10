@@ -117,4 +117,24 @@ describe('DesktopBridgeLive', () => {
 		expect(error?.column).toBe(2);
 		expect(error?.snippet).toBe('    efault regwidth = 8;\n    ^^^^^^');
 	});
+
+	it('applies optional desktop zoom when available', async () => {
+		const setZoom = vi.fn().mockResolvedValue(undefined);
+		const desktopApi = {
+			setZoom,
+		} as unknown as DesktopApi;
+		Object.defineProperty(globalThis, 'window', {
+			configurable: true,
+			value: { everest: desktopApi },
+		});
+
+		await Effect.runPromise(
+			Effect.gen(function* () {
+				const desktop = yield* DesktopBridge;
+				yield* desktop.setZoom(1.2);
+			}).pipe(Effect.provide(DesktopBridgeLive)),
+		);
+
+		expect(setZoom).toHaveBeenCalledWith(1.2);
+	});
 });

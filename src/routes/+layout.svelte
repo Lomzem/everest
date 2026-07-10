@@ -7,7 +7,7 @@
 	let { children } = $props();
 
 	onMount(() => {
-		ui.initializeTheme();
+		ui.initializeAppearance();
 	});
 </script>
 
