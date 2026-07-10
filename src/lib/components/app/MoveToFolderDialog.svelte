@@ -150,7 +150,11 @@
 			</Dialog.Description>
 		</Dialog.Header>
 
-		<ScrollArea class="min-h-0 overflow-hidden px-2 py-2" scrollbarYClasses="right-1">
+		<ScrollArea
+			class="h-full min-h-0 overflow-hidden px-2 py-2"
+			scrollbarYClasses="right-1"
+			viewportClasses="overflow-x-hidden overflow-y-auto"
+		>
 			<div class="min-w-0 space-y-1 pb-2 pr-3">
 				{#each targets as target (target.id)}
 					{@const disabled = editor.moveTargetDisabled(kind, itemId, target.path)}
