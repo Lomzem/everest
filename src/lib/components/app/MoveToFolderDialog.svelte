@@ -138,7 +138,7 @@
 
 <Dialog.Root bind:open>
 	<Dialog.Content
-		class="flex max-h-[min(36rem,calc(100vh-2rem))] max-w-[min(34rem,calc(100vw-2rem))] flex-col gap-0 overflow-hidden p-0 text-base sm:max-w-lg"
+		class="grid h-[min(36rem,calc(100vh-2rem))] max-w-[min(34rem,calc(100vw-2rem))] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 text-base sm:max-w-lg"
 	>
 		<Dialog.Header class="border-b border-border p-4 pr-12">
 			<Dialog.Title class="flex items-center gap-2 text-base">
@@ -150,7 +150,7 @@
 			</Dialog.Description>
 		</Dialog.Header>
 
-		<ScrollArea class="min-h-0 flex-1 overflow-hidden px-2 py-2" scrollbarYClasses="right-1">
+		<ScrollArea class="min-h-0 overflow-hidden px-2 py-2" scrollbarYClasses="right-1">
 			<div class="min-w-0 space-y-1 pb-2 pr-3">
 				{#each targets as target (target.id)}
 					{@const disabled = editor.moveTargetDisabled(kind, itemId, target.path)}
