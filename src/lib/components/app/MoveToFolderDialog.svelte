@@ -150,8 +150,8 @@
 			</Dialog.Description>
 		</Dialog.Header>
 
-		<ScrollArea class="min-h-0 flex-1 px-2 py-2" scrollbarYClasses="right-1">
-			<div class="min-w-0 space-y-1 pr-3">
+		<ScrollArea class="min-h-0 flex-1 overflow-hidden px-2 py-2" scrollbarYClasses="right-1">
+			<div class="min-w-0 space-y-1 pb-2 pr-3">
 				{#each targets as target (target.id)}
 					{@const disabled = editor.moveTargetDisabled(kind, itemId, target.path)}
 					{@const hint = targetHint(target.path)}
@@ -203,7 +203,7 @@
 			</div>
 		</ScrollArea>
 
-		<Dialog.Footer class="border-t border-border p-3">
+		<Dialog.Footer class="relative z-10 border-t border-border bg-popover p-3">
 			<Button variant="outline" onclick={() => (open = false)}>Cancel</Button>
 			<Button onclick={confirmMove} disabled={selectedDisabled}>Move</Button>
 		</Dialog.Footer>
