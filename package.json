@@ -28,7 +28,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@fontsource-variable/geist": "^5.2.9",
+    "@fontsource-variable/geist-mono": "^5.2.8",
+    "@fontsource/rubik": "^5.2.8",
     "@internationalized/date": "^3.12.2",
     "@lucide/svelte": "^1.23.0",
     "@sveltejs/adapter-static": "^3.0.10",
