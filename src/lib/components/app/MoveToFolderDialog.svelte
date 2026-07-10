@@ -162,21 +162,24 @@
 						style:padding-left={`${target.depth * 1.25 + 0.5}rem`}
 						title={hint}
 					>
-						<button
-							type="button"
-							class="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-background hover:text-foreground disabled:opacity-30"
-							disabled={!target.hasChildren}
-							onclick={() => toggleExpanded(target.path)}
-							aria-label={expandedPaths.has(target.path)
-								? `Collapse ${target.label}`
-								: `Expand ${target.label}`}
-						>
-							{#if expandedPaths.has(target.path)}
-								<ChevronDown size={14} />
-							{:else}
-								<ChevronRight size={14} />
-							{/if}
-						</button>
+						{#if target.hasChildren}
+							<button
+								type="button"
+								class="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-background hover:text-foreground"
+								onclick={() => toggleExpanded(target.path)}
+								aria-label={expandedPaths.has(target.path)
+									? `Collapse ${target.label}`
+									: `Expand ${target.label}`}
+							>
+								{#if expandedPaths.has(target.path)}
+									<ChevronDown size={14} />
+								{:else}
+									<ChevronRight size={14} />
+								{/if}
+							</button>
+						{:else}
+							<span class="size-6 shrink-0" aria-hidden="true"></span>
+						{/if}
 						{#if target.id === rootBlockId}
 							<FolderTree size={15} class="shrink-0 text-muted-foreground" />
 						{:else}
