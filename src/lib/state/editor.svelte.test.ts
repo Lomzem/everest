@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopApi } from '$lib/desktop-api';
 import { RdlParseFailed } from '$lib/effect/desktop';
-import { folderDndId, registerDndId } from '$lib/rdl/hierarchy';
 import type { RdlDocument } from '$lib/rdl/model';
 import { registerAddressErrors } from '$lib/rdl/validation';
 import { EditorState } from './editor.svelte';
@@ -477,24 +476,6 @@ describe('EditorState derived names', () => {
 			false,
 		);
 		expect(state.canMoveGroupToGroup('status', 'Control')).toBe(false);
-	});
-
-	it('finalizes hierarchy dnd drops through prefixed item IDs', () => {
-		const state = new EditorState();
-		state.applyDocument(moveDocument(), '/tmp/top.rdl', false);
-
-		state.moveHierarchyItemToGroup(registerDndId('status'), 'Control');
-		expect(state.document.registers.find((register) => register.id === 'status')?.group).toBe(
-			'Control',
-		);
-
-		state.moveHierarchyItemToGroup(folderDndId('nested'), 'Control');
-		expect(state.document.hierarchyGroups.find((group) => group.id === 'nested')?.path).toBe(
-			'Control/Nested',
-		);
-		expect(state.document.registers.find((register) => register.id === 'nested')?.group).toBe(
-			'Control/Nested',
-		);
 	});
 
 	it('undoes deleting an enum value and restores reset enum reference', async () => {

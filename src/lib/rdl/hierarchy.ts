@@ -3,23 +3,6 @@ import type { HierarchyGroup, Register } from './model';
 export type AppView = 'welcome' | 'editor';
 export type BreadcrumbGroup = { label: string; path: string };
 export type SelectionKind = 'folder' | 'register';
-export type HierarchyDndItem =
-	| {
-			id: string;
-			kind: 'folder';
-			groupId: string;
-			path: string;
-			label: string;
-			isDndShadowItem?: boolean;
-	  }
-	| {
-			id: string;
-			kind: 'register';
-			registerId: string;
-			path: string;
-			label: string;
-			isDndShadowItem?: boolean;
-	  };
 export type FolderChild =
 	| { kind: 'folder'; id: string; path: string; label: string; address: number | null }
 	| { kind: 'register'; id: string; register: Register; address: number }
@@ -41,14 +24,6 @@ export const emptyRegister: Register = {
 	hw: 'RW',
 	fields: [],
 };
-
-export function folderDndId(groupId: string) {
-	return `folder:${groupId}`;
-}
-
-export function registerDndId(registerId: string) {
-	return `register:${registerId}`;
-}
 
 export function basename(path: string) {
 	return path.split(/[/\\]/).pop() ?? path;
@@ -191,32 +166,6 @@ export function buildHierarchyChildren(
 			address: register.address,
 		}));
 	return [...folderChildren, ...registerChildren].sort(compareFolderChildren);
-}
-
-export function buildHierarchyDndItems(
-	groupPath: string,
-	groups: HierarchyGroup[],
-	registers: Register[],
-): HierarchyDndItem[] {
-	return buildHierarchyChildren(groupPath, groups, registers).map((child) => {
-		if (child.kind === 'folder') {
-			return {
-				id: folderDndId(child.id),
-				kind: 'folder',
-				groupId: child.id,
-				path: child.path,
-				label: child.label,
-			};
-		}
-
-		return {
-			id: registerDndId(child.register.id),
-			kind: 'register',
-			registerId: child.register.id,
-			path: child.register.group,
-			label: child.register.title || child.register.name,
-		};
-	});
 }
 
 export function buildReservedAddressChildren(

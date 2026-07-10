@@ -1,5 +1,4 @@
 import { SvelteSet } from 'svelte/reactivity';
-import type { HierarchyDndItem } from '$lib/rdl/hierarchy';
 import type { Register, ValueMode } from '$lib/rdl/model';
 import { rootBlockId } from '$lib/rdl/hierarchy';
 import { formatEditableValue } from '$lib/rdl/format';
@@ -22,7 +21,6 @@ export class UiState {
 	expandedFieldIds = $state(new SvelteSet<string>());
 	numericDrafts = $state<Record<string, string>>({});
 	renamingGroupId = $state('');
-	hierarchyDragPreview = $state<Record<string, HierarchyDndItem[]>>({});
 	private removeSystemThemeListener?: () => void;
 	private searchInputTimer?: ReturnType<typeof setTimeout>;
 
@@ -67,7 +65,6 @@ export class UiState {
 		this.expandedFieldIds = new SvelteSet<string>();
 		this.numericDrafts = {};
 		this.renamingGroupId = '';
-		this.finishHierarchyDrag();
 	}
 
 	toggleLeftCollapsed() {
@@ -154,14 +151,6 @@ export class UiState {
 		const rest = { ...this.numericDrafts };
 		delete rest[key];
 		this.numericDrafts = rest;
-	}
-
-	previewHierarchyDrag(groupPath: string, items: HierarchyDndItem[]) {
-		this.hierarchyDragPreview = { ...this.hierarchyDragPreview, [groupPath]: items };
-	}
-
-	finishHierarchyDrag() {
-		this.hierarchyDragPreview = {};
 	}
 }
 

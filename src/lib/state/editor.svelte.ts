@@ -28,7 +28,6 @@ import {
 	basename,
 	buildFolderChildren,
 	buildGroupCrumbs,
-	buildHierarchyDndItems,
 	buildHierarchyChildren,
 	emptyRegister,
 	groupForPath,
@@ -38,7 +37,6 @@ import {
 	registerByteWidth,
 	rootBlockId,
 	type AppView,
-	type HierarchyDndItem,
 	type SelectionKind,
 } from '$lib/rdl/hierarchy';
 import { deriveIdentifier, fieldBitWidth, parseEditableValue, range } from '$lib/rdl/format';
@@ -133,13 +131,6 @@ export class EditorState {
 
 	folderChildren(groupPath: string) {
 		return buildHierarchyChildren(groupPath, this.visibleHierarchyGroups, this.filteredRegisters);
-	}
-
-	hierarchyDndItems(groupPath: string) {
-		return (
-			ui.hierarchyDragPreview[groupPath] ??
-			buildHierarchyDndItems(groupPath, this.document.hierarchyGroups, this.document.registers)
-		);
 	}
 
 	hierarchyGroupForPath(groupPath: string) {
@@ -553,29 +544,6 @@ export class EditorState {
 		this.selectedFieldId = fieldId;
 		ui.toggleField(fieldId);
 		this.persistSession();
-	}
-
-	previewHierarchyDrop(groupPath: string, items: HierarchyDndItem[]) {
-		ui.previewHierarchyDrag(groupPath, items);
-	}
-
-	finalizeHierarchyDrop(groupPath: string, items: HierarchyDndItem[], itemId: string) {
-		ui.previewHierarchyDrag(groupPath, items);
-		if (!items.some((item) => item.id === itemId)) return;
-
-		this.moveHierarchyItemToGroup(itemId, groupPath);
-		ui.finishHierarchyDrag();
-	}
-
-	moveHierarchyItemToGroup(itemId: string, groupPath: string) {
-		if (itemId.startsWith('register:')) {
-			this.moveRegisterToGroup(itemId.slice('register:'.length), groupPath);
-			return;
-		}
-
-		if (itemId.startsWith('folder:')) {
-			this.moveGroupToGroup(itemId.slice('folder:'.length), groupPath);
-		}
 	}
 
 	moveRegisterToGroup(

@@ -1,14 +1,5 @@
 <script lang="ts">
-	import {
-		ChevronDown,
-		ChevronRight,
-		Plus,
-		FolderPlus,
-		Trash2,
-		PenLine,
-		GripVertical,
-	} from '@lucide/svelte';
-	import { dragHandle } from 'svelte-dnd-action';
+	import { ChevronDown, ChevronRight, Plus, FolderPlus, Trash2, PenLine } from '@lucide/svelte';
 	import * as ContextMenu from '$lib/components/ui/context-menu';
 	import type { HierarchyGroup } from '$lib/rdl/model';
 	import { editor, textInput } from '$lib/state/editor.svelte';
@@ -54,14 +45,6 @@
 						/>
 					</div>
 				{:else}
-					<span
-						class="inline-flex size-6 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground opacity-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus:opacity-100 group-hover:opacity-100"
-						use:dragHandle
-						aria-label={`Move ${group.label}`}
-						title="Move"
-					>
-						<GripVertical size={14} />
-					</span>
 					<button
 						class="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
 						onclick={() => ui.toggleBlock(group.id)}
