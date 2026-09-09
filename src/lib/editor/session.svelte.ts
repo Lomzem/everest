@@ -35,8 +35,9 @@ export function createEditorSession(
 	let status = $state('');
 	let hasDocument = $state(false);
 	let canWriteBack = $state(false);
-	let history = $state.raw<Compilation[]>([]);
-	let future = $state.raw<Compilation[]>([]);
+	type Snapshot = { compilation: Compilation; selectedId: string };
+	let history = $state.raw<Snapshot[]>([]);
+	let future = $state.raw<Snapshot[]>([]);
 	let handle: WritableFileHandle | undefined;
 	let disposed = false;
 	let newDraft = false;
@@ -48,10 +49,23 @@ export function createEditorSession(
 	const dirty = $derived(hasDocument && source !== baseline);
 	const diff = $derived(diffLines(baseline, source));
 
-	function accept(next: Compilation) {
+	function snapshot(): Snapshot {
+		return { compilation, selectedId };
+	}
+	function accept(next: Compilation, selection = selectedId) {
 		compilation = next;
 		source = next.source;
-		if (!next.nodes.some((node) => node.id === selectedId)) selectedId = next.roots[0]?.id ?? '';
+		selectedId = next.nodes.some((node) => node.id === selection)
+			? selection
+			: (next.roots[0]?.id ?? '');
+	}
+	function selectionAfterEdit(command: EditCommand): string {
+		if (command.type !== 'rename') return selectedId;
+		const target = compilation.nodes.find((node) => node.id === command.nodeId);
+		if (!target || !(selectedId === target.id || selectedId.startsWith(`${target.id}.`)))
+			return selectedId;
+		const renamedId = target.parentId ? `${target.parentId}.${command.name}` : command.name;
+		return renamedId + selectedId.slice(target.id.length);
 	}
 	async function task(
 		operation: Effect.Effect<void, unknown, Files>,
@@ -183,8 +197,9 @@ export function createEditorSession(
 		},
 		edit(command: EditCommand) {
 			if (!hasDocument || !compilation.valid) return Promise.resolve(false);
+			const editCommand = $state.snapshot(command);
 			return task(
-				compiler.compile(source, $state.snapshot(command)).pipe(
+				compiler.compile(source, editCommand).pipe(
 					Effect.flatMap((next) => {
 						if (!next.valid)
 							return Effect.fail(
@@ -197,9 +212,9 @@ export function createEditorSession(
 							);
 						return Effect.sync(() => {
 							if (next.source === source || disposed) return;
-							history = [...history, compilation].slice(-100);
+							history = [...history, snapshot()].slice(-100);
 							future = [];
-							accept(next);
+							accept(next, selectionAfterEdit(editCommand));
 							status = 'Changes pending';
 						});
 					})
@@ -209,19 +224,19 @@ export function createEditorSession(
 		},
 		undo() {
 			if (disposed || busy || !history.length) return;
-			future = [...future, compilation];
+			future = [...future, snapshot()];
 			const previous = history.at(-1)!;
 			history = history.slice(0, -1);
-			accept(previous);
+			accept(previous.compilation, previous.selectedId);
 			error = '';
 			status = 'Edit undone';
 		},
 		redo() {
 			if (disposed || busy || !future.length) return;
-			history = [...history, compilation];
+			history = [...history, snapshot()];
 			const next = future.at(-1)!;
 			future = future.slice(0, -1);
-			accept(next);
+			accept(next.compilation, next.selectedId);
 			error = '';
 			status = 'Edit restored';
 		},

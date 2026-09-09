@@ -287,3 +287,27 @@ test('applies nested struct array values with an explicit action', async ({ page
 		"values: '{1, 2, 3}"
 	);
 });
+
+test('keeps a renamed register selected through undo and redo', async ({ page }) => {
+	await openFixture(page);
+	const tree = page.getByRole('complementary', { name: 'Components' });
+	await tree.getByRole('button', { name: /^control / }).click();
+	await rename(page, 'configuration');
+	await expect(tree.getByRole('button', { name: /^configuration / })).toHaveAttribute(
+		'aria-current',
+		'true'
+	);
+	await expect(page.getByLabel('Register width', { exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'control', exact: true })).toBeVisible();
+	await expect(tree.getByRole('button', { name: /^control / })).toHaveAttribute(
+		'aria-current',
+		'true'
+	);
+	await page.getByRole('button', { name: 'Redo', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'configuration', exact: true })).toBeVisible();
+	await expect(tree.getByRole('button', { name: /^configuration / })).toHaveAttribute(
+		'aria-current',
+		'true'
+	);
+});

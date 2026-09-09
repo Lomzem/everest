@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Effect } from 'effect';
 import type { Compilation, EditCommand } from '$lib/rdl/types';
+import { compile as compileRdl, applyEdit } from '$lib/rdl';
 import { CompilerError } from './compiler';
 import { Files, FileError, type WritableFileHandle } from './files';
 import { createEditorSession, type EditorSession } from './session.svelte';
@@ -219,4 +220,56 @@ it('passes plain nested command data to the worker boundary', async () => {
 			definition: { name: 'modes', type: 'string[]', components, defaultText: "'{}" }
 		})
 	).toBe(true);
+});
+
+describe('selection across rename', () => {
+	function documentSession() {
+		const setup = fixture(
+			'addrmap device {reg {field {} value;} control;reg {field {} value;} control2;};'
+		);
+		setup.compiler.compile.mockImplementation((source, command) =>
+			Effect.sync(() => {
+				const current = compileRdl(source);
+				return command ? compileRdl(applyEdit(current, command)) : current;
+			})
+		);
+		return setup.session;
+	}
+	it('keeps the renamed child selected and restores selection with undo and redo', async () => {
+		const session = documentSession();
+		await session.open();
+		session.select('device.control');
+		expect(await session.edit({ type: 'rename', nodeId: 'device.control', name: 'config' })).toBe(
+			true
+		);
+		expect(session.selectedId).toBe('device.config');
+		session.undo();
+		expect(session.selectedId).toBe('device.control');
+		session.redo();
+		expect(session.selectedId).toBe('device.config');
+	});
+	it('maps the selected descendant across an ancestor rename', async () => {
+		const session = documentSession();
+		await session.open();
+		session.select('device.control.value');
+		expect(await session.edit({ type: 'rename', nodeId: 'device.control', name: 'config' })).toBe(
+			true
+		);
+		expect(session.selectedId).toBe('device.config.value');
+		session.undo();
+		expect(session.selectedId).toBe('device.control.value');
+		session.redo();
+		expect(session.selectedId).toBe('device.config.value');
+	});
+	it('does not map an unrelated component with a matching name prefix', async () => {
+		const session = documentSession();
+		await session.open();
+		session.select('device.control2');
+		expect(await session.edit({ type: 'rename', nodeId: 'device.control', name: 'config' })).toBe(
+			true
+		);
+		expect(session.selectedId).toBe('device.control2');
+		session.undo();
+		expect(session.selectedId).toBe('device.control2');
+	});
 });
