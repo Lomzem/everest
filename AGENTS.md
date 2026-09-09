@@ -10,6 +10,7 @@
 
 - A **top priority** of our app is (assuming input .rdl files are in a normalised state), edits to `.rdl` files with our app cause the smallest `git diff` possible.
 - When using example `.rdl` files as reference, do not include any identifying information from them in code or tests, including filenames, register names, field names, etc.
+- Use @read-only as a read-only reference.
 
 ### TypeScript
 
