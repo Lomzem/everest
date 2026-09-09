@@ -4,6 +4,12 @@ import { playwright } from '@vitest/browser-playwright';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 
+// Vitest serves its browser runner at the domain root. E2E tests use the production base.
+const basePath = process.env.VITEST ? '' : (process.env.BASE_PATH ?? '/everest');
+if (basePath !== '' && (!basePath.startsWith('/') || basePath.endsWith('/'))) {
+	throw new Error('BASE_PATH must be empty or start with / and have no final /.');
+}
+
 export default defineConfig({
 	plugins: [
 		tailwindcss(),
@@ -13,7 +19,11 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter()
+			adapter: adapter(),
+			paths: {
+				base: basePath as '' | `/${string}`,
+				relative: false
+			}
 		})
 	],
 	test: {
