@@ -1,3 +1,11 @@
+## Project Configuration
+
+- **Language**: TypeScript
+- **Package Manager**: bun
+- **Add-ons**: prettier, eslint, vitest, playwright, tailwindcss, sveltekit-adapter, ai-tools
+
+---
+
 ## Project Rules
 
 - A **top priority** of our app is (assuming input .rdl files are in a normalised state), edits to `.rdl` files with our app cause the smallest `git diff` possible.
