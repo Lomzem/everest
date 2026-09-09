@@ -23,3 +23,7 @@
 - Application-level component classes should primarily control layout, width, positioning, and overflow.
 - Use semantic theme variables. Do not use fixed Tailwind palette colors for application states.
 - Test hover, focus, selected, invalid, disabled, open-popup, and destructive-action states when changing interactive UI.
+
+## Example RDL
+
+See @read-only/example-rdl for test `.rdl` files.
