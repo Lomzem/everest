@@ -35,6 +35,8 @@ function fixture(initial = 'original', native = false) {
 		dispose: vi.fn()
 	};
 	const files = Files.of({
+		reopen: (handle) => Effect.succeed({ name: 'sample.rdl', source: initial, handle }),
+		chooseSaveTarget: () => Effect.succeed(undefined),
 		open: () =>
 			Effect.succeed({ name: 'sample.rdl', source: initial, handle: native ? handle : undefined }),
 		write,
@@ -123,7 +125,7 @@ describe('document baseline and history', () => {
 	it('starts a new draft against an empty baseline and closes it on discard', async () => {
 		const { session } = fixture();
 		await session.newDocument();
-		expect(session.source).toContain('field');
+		expect(session.source).toContain('addrmap untitled_addrmap');
 		expect(session.baseline).toBe('');
 		expect(session.dirty).toBe(true);
 		await session.discard();
@@ -271,5 +273,80 @@ describe('selection across rename', () => {
 		expect(session.selectedId).toBe('device.control2');
 		session.undo();
 		expect(session.selectedId).toBe('device.control2');
+	});
+});
+
+describe('Save As and close', () => {
+	it('adopts a Save As target only after its write succeeds', async () => {
+		const { session, files, write } = fixture();
+		const handle = { name: 'copy.rdl' } as WritableFileHandle;
+		files.chooseSaveTarget = () =>
+			Effect.succeed({ name: handle.name, handle, source: 'previous' });
+		await session.open();
+		await session.edit(edit);
+		expect(await session.saveAs()).toBe(true);
+		expect(write).toHaveBeenCalledWith(handle, session.source, 'previous');
+		expect(session.filename).toBe('copy.rdl');
+		expect(session.baseline).toBe(session.source);
+		expect(session.canWriteBack).toBe(true);
+		expect(session.dirty).toBe(false);
+	});
+	it('keeps the opened target and baseline when Save As fails', async () => {
+		const { session, files } = fixture('original', true);
+		files.chooseSaveTarget = () =>
+			Effect.succeed({ name: 'copy.rdl', handle: {} as WritableFileHandle, source: '' });
+		files.write = () => Effect.fail(new FileError({ message: 'Write failed', cancelled: false }));
+		await session.open();
+		await session.edit(edit);
+		expect(await session.saveAs()).toBe(false);
+		expect(session.filename).toBe('sample.rdl');
+		expect(session.baseline).toBe('original');
+		expect(session.dirty).toBe(true);
+	});
+	it('keeps the baseline for Save As downloads and clears session on close', async () => {
+		const { session, download } = fixture();
+		await session.open();
+		await session.edit(edit);
+		await session.saveAs();
+		expect(download).toHaveBeenCalledWith('sample.rdl', session.source);
+		expect(session.baseline).toBe('original');
+		expect(session.close()).toBe(true);
+		expect(session.hasDocument).toBe(false);
+		expect(session.source).toBe('');
+		expect(session.canUndo).toBe(false);
+		expect(session.canWriteBack).toBe(false);
+	});
+});
+
+describe('conflict recovery', () => {
+	it('overwrites only after reading the current target and then updates baseline', async () => {
+		const { session, files, write } = fixture('original', true);
+		files.reopen = (handle) => Effect.succeed({ name: 'sample.rdl', source: 'external', handle });
+		await session.open();
+		await session.edit(edit);
+		await session.overwrite();
+		expect(write).toHaveBeenCalledWith(expect.anything(), session.source, 'external');
+		expect(session.dirty).toBe(false);
+	});
+	it('reload replaces source and clears prior history', async () => {
+		const { session, files } = fixture('original', true);
+		files.reopen = (handle) => Effect.succeed({ name: 'sample.rdl', source: 'external', handle });
+		await session.open();
+		await session.edit(edit);
+		await session.reload();
+		expect(session.source).toBe('external');
+		expect(session.canUndo).toBe(false);
+		expect(session.dirty).toBe(false);
+	});
+	it('cancelled Save As keeps the original document without an error', async () => {
+		const { session, files } = fixture();
+		await session.open();
+		await session.edit(edit);
+		files.chooseSaveTarget = () =>
+			Effect.fail(new FileError({ message: 'Cancelled', cancelled: true }));
+		expect(await session.saveAs()).toBe(false);
+		expect(session.error).toBe('');
+		expect(session.dirty).toBe(true);
+		expect(session.filename).toBe('sample.rdl');
 	});
 });

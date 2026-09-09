@@ -25,6 +25,8 @@ export interface PropertyValue {
 	type: string;
 }
 export interface RdlNode {
+	groupPath?: string;
+	defaultAccess?: { sw: string; hw: string };
 	id: string;
 	name: string;
 	kind: ComponentKind;
@@ -74,7 +76,15 @@ export interface EnumDefinition {
 	bodyRange: SourceRange;
 	editable: boolean;
 }
+export interface RdlGroup {
+	id: string;
+	path: string;
+	label: string;
+	parentPath: string;
+	registerIds: string[];
+}
 export interface Compilation {
+	groups?: RdlGroup[];
 	source: string;
 	roots: RdlNode[];
 	nodes: RdlNode[];
@@ -96,6 +106,30 @@ export interface EnumInput {
 	members: { name: string; value: string; description?: string }[];
 }
 export type EditCommand =
+	| { type: 'update-title'; nodeId: string; title: string; deriveIdentifier?: boolean }
+	| { type: 'set-register-access'; nodeId: string; sw?: string; hw?: string }
+	| {
+			type: 'add-register';
+			parentId: string;
+			name: string;
+			title?: string;
+			address: string;
+			width: number;
+			groupPath?: string;
+	  }
+	| { type: 'move-component'; nodeId: string; parentId: string }
+	| { type: 'move-to-group'; nodeId: string; path: string }
+	| { type: 'rename-group'; path: string; name: string }
+	| { type: 'move-group'; path: string; parentPath: string }
+	| { type: 'delete-group'; path: string }
+	| {
+			type: 'bind-enum';
+			resetMember?: string;
+			nodeId: string;
+			definition: EnumInput;
+			previousName?: string;
+			previousStart?: number;
+	  }
 	| { type: 'set-property'; nodeId: string; property: string; value: string }
 	| { type: 'remove-property'; nodeId: string; property: string }
 	| { type: 'rename'; nodeId: string; name: string }

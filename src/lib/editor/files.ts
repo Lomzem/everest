@@ -11,6 +11,7 @@ export interface WritableFileHandle {
 }
 interface PickerWindow extends Window {
 	showOpenFilePicker?: (options: object) => Promise<WritableFileHandle[]>;
+	showSaveFilePicker?: (options: object) => Promise<WritableFileHandle>;
 }
 export interface OpenedFile {
 	name: string;
@@ -43,6 +44,8 @@ export class Files extends Context.Service<
 	Files,
 	{
 		open: (file?: File) => Effect.Effect<OpenedFile, FileError>;
+		reopen: (handle: WritableFileHandle) => Effect.Effect<OpenedFile, FileError>;
+		chooseSaveTarget: (filename: string) => Effect.Effect<OpenedFile | undefined, FileError>;
 		write: (
 			handle: WritableFileHandle,
 			source: string,
@@ -55,6 +58,29 @@ export class Files extends Context.Service<
 export const browserFiles = Layer.succeed(
 	Files,
 	Files.of({
+		reopen: (handle) =>
+			Effect.tryPromise({
+				try: async () => ({
+					name: handle.name,
+					source: await readSource(await handle.getFile()),
+					handle
+				}),
+				catch: fileError
+			}),
+		chooseSaveTarget: (filename) =>
+			Effect.tryPromise({
+				try: async (signal) => {
+					const picker = (window as PickerWindow).showSaveFilePicker;
+					if (!picker) return undefined;
+					const handle = await picker.call(window, {
+						suggestedName: filename,
+						types: [{ description: 'SystemRDL', accept: { 'text/plain': ['.rdl'] } }]
+					});
+					signal.throwIfAborted();
+					return { name: handle.name, source: await readSource(await handle.getFile()), handle };
+				},
+				catch: fileError
+			}),
 		open: (file) =>
 			Effect.tryPromise({
 				try: async (signal) => {

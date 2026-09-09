@@ -1,56 +1,67 @@
 import { expect, test } from '@playwright/test';
 import { registerMap } from './fixtures';
 
-test('editor remains usable in light and dark themes, dialogs and a narrow viewport', async ({
+test('uses the reference dark theme, resizable sidebar and shadcn settings controls', async ({
 	page,
 	browserName
 }) => {
-	await page.setViewportSize({ width: 1280, height: 900 });
-	await page.addInitScript(() => {
-		Object.defineProperty(window, 'showOpenFilePicker', { value: undefined, configurable: true });
-	});
+	await page.setViewportSize({ width: 1600, height: 1000 });
+	await page.addInitScript(() =>
+		Object.defineProperty(window, 'showOpenFilePicker', { value: undefined, configurable: true })
+	);
 	await page.goto('./');
-	await page.screenshot({ path: `/tmp/everest-review-${browserName}-empty.png` });
+	await expect(page.locator('html')).toHaveClass(/dark/);
+	const palette = await page.evaluate(() => {
+		const canvas = document.createElement('canvas');
+		canvas.width = 1;
+		canvas.height = 1;
+		const context = canvas.getContext('2d')!;
+		return ['background', 'card', 'primary', 'border', 'sidebar'].map((name) => {
+			context.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--' + name);
+			context.fillRect(0, 0, 1, 1);
+			return Array.from(context.getImageData(0, 0, 1, 1).data).slice(0, 3);
+		});
+	});
+	expect(palette).toEqual([
+		[34, 29, 39],
+		[44, 38, 50],
+		[163, 0, 76],
+		[59, 50, 55],
+		[24, 17, 23]
+	]);
+	await page.screenshot({ path: `/tmp/everest-restored-${browserName}-welcome.png` });
 	const chooser = page.waitForEvent('filechooser');
-	await page.getByRole('button', { name: 'Open .rdl file' }).click();
+	await page.getByRole('button', { name: 'Open RDL', exact: true }).click();
 	await (
 		await chooser
 	).setFiles({ name: 'synthetic.rdl', mimeType: 'text/plain', buffer: Buffer.from(registerMap) });
-	await expect(page.getByRole('heading', { name: 'device', exact: true })).toBeVisible();
-	await page
-		.getByRole('complementary', { name: 'Components' })
-		.getByRole('button', { name: /^control / })
-		.click();
-	await expect(page.getByRole('heading', { name: 'control', exact: true })).toBeVisible();
-	await page.getByLabel('Instance name', { exact: true }).focus();
-	await page.screenshot({ path: `/tmp/everest-review-${browserName}-light.png` });
-	await page.getByRole('button', { name: 'Use dark theme' }).click();
+	const search = page.getByRole('combobox', { name: 'Search registers' });
+	await search.fill('control');
+	await search.press('Enter');
+	await expect(page.getByLabel('Register identifier', { exact: true })).toHaveValue('control');
+	const handle = page.locator('[data-slot="resizable-handle"]');
+	const before = (await handle.boundingBox())!;
+	await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(before.x + 140, before.y + before.height / 2, { steps: 10 });
+	await page.mouse.up();
+	expect((await handle.boundingBox())!.x).toBeGreaterThan(before.x + 80);
+	await page.screenshot({ path: `/tmp/everest-restored-${browserName}-editor.png` });
+	await page.getByRole('button', { name: 'Settings', exact: true }).click();
+	const dialog = page.getByRole('dialog');
+	await expect(dialog).toBeVisible();
+	const theme = dialog.getByRole('button', { name: 'Theme', exact: true });
+	await theme.click();
+	await page.getByRole('option', { name: 'Light', exact: true }).click();
+	await expect(page.locator('html')).not.toHaveClass(/dark/);
+	await theme.click();
+	await page.getByRole('option', { name: 'Dark', exact: true }).click();
 	await expect(page.locator('html')).toHaveClass(/dark/);
-	await page.screenshot({ path: `/tmp/everest-review-${browserName}-dark.png` });
-	await page.getByLabel('Register width', { exact: true }).fill('3');
-	await page.getByLabel('Register width', { exact: true }).press('Enter');
-	await expect(page.getByLabel('Register width', { exact: true })).toHaveAttribute(
-		'aria-invalid',
-		'true'
-	);
-	await page.screenshot({ path: `/tmp/everest-review-${browserName}-invalid.png` });
-	await page.getByLabel('Register width', { exact: true }).press('Escape');
-	await page.getByRole('button', { name: 'Delete control', exact: true }).click();
-	await expect(page.getByRole('dialog')).toBeVisible();
-	await expect(
-		page.getByRole('dialog').getByRole('button', { name: 'Delete component' })
-	).toBeVisible();
-	await page.screenshot({ path: `/tmp/everest-review-${browserName}-dialog.png` });
-	await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
-	await page.setViewportSize({ width: 390, height: 844 });
-	await expect(page.getByRole('button', { name: 'Explorer', exact: true })).toBeVisible();
-	expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-	await page.getByRole('button', { name: 'Explorer', exact: true }).click();
-	await expect(page.getByRole('complementary', { name: 'Components' })).toBeVisible();
-	await page
-		.getByRole('complementary', { name: 'Components' })
-		.getByRole('button', { name: /^status / })
-		.click();
-	await expect(page.getByRole('heading', { name: 'status', exact: true })).toBeVisible();
-	await page.screenshot({ path: `/tmp/everest-review-${browserName}-mobile.png` });
+	await dialog.getByRole('switch', { name: 'Show reserved gaps', exact: true }).click();
+	await page.screenshot({ path: `/tmp/everest-restored-${browserName}-settings.png` });
+	await page.keyboard.press('Escape');
+	await page.getByRole('menuitem', { name: 'File', exact: true }).focus();
+	await page.keyboard.press('ArrowDown');
+	await expect(page.getByRole('menu')).toBeVisible();
+	await page.keyboard.press('Escape');
 });

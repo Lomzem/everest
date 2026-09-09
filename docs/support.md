@@ -16,7 +16,7 @@ The parser reads named and anonymous components, instances, enum and struct decl
 - Explicit field ranges and implicit field packing, including msb0 maps. The model represents bit ranges by their numerical low and high positions.
 - Same-file object and function macros, nested macro calls, define/undef, and ifdef/ifndef/elsif/else/endif. Macro changes take effect in source order. Comments and strings do not activate preprocessing directives.
 - Integer, boolean, string, enum, array, and struct expressions; arithmetic, logical, comparison, bitwise, concatenation, replication, and supported numeric casts.
-- Enum member declarations and source scope information. Struct inheritance is exposed as flattened members for typed visual controls.
+- Enum member declarations and source scope information. Struct inheritance is retained as flattened member metadata.
 - User-defined property declarations, component restrictions, scalar and aggregate types, defaults, bindings without values, and componentwidth constraints. A default does not attach the property to every component. A bare binding uses the declaration default, or remains unassigned.
 - Built-in property values listed in `src/lib/rdl/properties.ts`. Common width, access, reset, address, reference, and overlap checks run before a source edit is accepted.
 - Instance property assignments are applied before layout and reset-width validation.
@@ -39,8 +39,16 @@ The writer applies source-span patches and compiles the result before it returns
 
 The editor preserves constructs that do not have dedicated visual controls. A generated value cannot be edited directly. Removing one instance from a declaration that contains several instances is rejected to prevent deletion of its siblings. Renaming a referenced symbol can fail validation; automatic reference rewriting is not implemented.
 
-The Changes view compares pending source with the last successful direct save. In the download fallback it compares with the opened source, because a browser download request does not confirm a disk write.
+The saved baseline advances only after a successful direct save. A download keeps the opened baseline, because a browser download request does not confirm a disk write. The visual controls follow the original Everest desktop UI; the parser retains user-defined properties even when they have no dedicated control.
 
 ## Verification
 
 Synthetic unit tests cover parser and evaluator behavior, user-defined properties, scope metadata, address and bit layout, exact text edits, source-preserving enum/property changes, and rejected edits. Browser tests cover the complete visual workflow. Private example files are used only for local smoke checks; their names and content are not included in tests or public artifacts.
+
+## Workspace recovery
+
+Recovery follows the Wattson workflow: only unsaved work is stored in IndexedDB. After a reload, Everest offers Resume or Discard with the filename and recovery time. It does not automatically reopen a clean file. Resume restores the source, opened-file baseline, selected component, and native file handle when the browser can retain it. A failed resume keeps the recovery data.
+
+Writes are debounced and serialized. Closing a document clears its recovery snapshot. A successful source save clears recovery only when no local form drafts or empty folders remain. A download retains recovery because the browser cannot confirm the disk write. The visibility-hidden handler flushes pending work. Browser storage errors do not replace the source document.
+
+Logical folders use the existing `doc_group` user-defined property. Moving or renaming these folders changes those property values without moving register addresses. Empty folders remain in workspace undo history and recovery until a register belongs to them. A source save does not discard these local folders; no new SystemRDL syntax is added.

@@ -491,12 +491,17 @@ function elaborate(source: string, parsed: ParsedDocument, diagnostics: Diagnost
 		if (nodes.some((n) => n.id === node.id))
 			report(inst.nameToken, 'DUPLICATE_INSTANCE', `Duplicate instance ${inst.name}.`);
 		nodes.push(node);
+		if (node.kind === 'reg') node.defaultAccess = { sw: 'rw', hw: 'rw' };
 		const lineage: Scope[] = [];
 		let scope: Scope | undefined = def.scope;
 		while (scope) {
 			lineage.unshift(scope);
 			scope = scope.parent;
 		}
+		for (const s of lineage)
+			for (const a of s.assignments)
+				if (a.isDefault && !a.target && node.defaultAccess && (a.name === 'sw' || a.name === 'hw'))
+					node.defaultAccess[a.name] = String(evalTokens(a.value, s, params));
 		for (const s of lineage)
 			for (const a of s.assignments) if (a.isDefault && !a.target) assign(node, a, s, params, true);
 		const activeAssignments = [...inheritedAssignments];
@@ -726,6 +731,8 @@ function elaborate(source: string, parsed: ParsedDocument, diagnostics: Diagnost
 					if (prior.kind === 'signal' || prior.kind === 'field') continue;
 					const a = prior.offset ?? 0n;
 					if (
+						(child.size ?? 0n) > 0n &&
+						(prior.size ?? 0n) > 0n &&
 						childOffset < a + (prior.size ?? 0n) &&
 						childOffset + (child.size ?? 0n) > a &&
 						!childInst.alias
@@ -787,6 +794,17 @@ function elaborate(source: string, parsed: ParsedDocument, diagnostics: Diagnost
 					'COMPONENT_NESTING',
 					`${child.kind} is not valid inside ${node.kind}.`
 				);
+		if (node.defaultAccess) {
+			for (const key of ['sw', 'hw'] as const)
+				if (
+					!lineage.some((s) =>
+						s.assignments.some((a) => a.isDefault && !a.target && a.name === key)
+					)
+				)
+					node.defaultAccess[key] = String(
+						node.children.find((c) => c.kind === 'field')?.properties[key]?.value ?? 'rw'
+					);
+		}
 		return node;
 	}
 	let rootInstances = parsed.scope.instances;
@@ -868,9 +886,53 @@ function elaborate(source: string, parsed: ParsedDocument, diagnostics: Diagnost
 		for (const p of Object.values(node.properties)) {
 			if (p.unassigned) continue;
 			if (p.type === 'enum') {
-				if (!enums.some((e) => e.name === p.value))
+				const encoded = enums
+					.filter(
+						(e) =>
+							e.name === p.value &&
+							(!e.scopeRange ||
+								(e.scopeRange.start <= node.bodyRange.start &&
+									node.bodyRange.start < e.scopeRange.end))
+					)
+					.sort(
+						(a, b) =>
+							(a.scopeRange?.end ?? source.length) -
+							(a.scopeRange?.start ?? 0) -
+							((b.scopeRange?.end ?? source.length) - (b.scopeRange?.start ?? 0))
+					)[0];
+				if (!encoded)
 					report(p.range ?? node.nameRange, 'ENUM_REFERENCE', `Unknown enum ${p.value}.`);
+				else if (
+					node.width &&
+					encoded.members.some((member) => member.value >= 1n << BigInt(node.width!))
+				)
+					report(
+						p.range ?? node.nameRange,
+						'ENUM_WIDTH',
+						'An enum value does not fit the field width.'
+					);
 			} else referenceCheck(p.value, p.type, p.range ?? node.nameRange, node);
+		}
+	const groupMap = new Map<string, import('./types').RdlGroup>();
+	for (const node of nodes)
+		if (node.kind === 'reg') {
+			const value = node.properties.doc_group?.value;
+			node.groupPath = typeof value === 'string' ? value : '';
+			if (node.groupPath) {
+				const parts = node.groupPath.split('/').filter(Boolean);
+				for (let i = 1; i <= parts.length; i++) {
+					const path = parts.slice(0, i).join('/');
+					if (!groupMap.has(path))
+						groupMap.set(path, {
+							id: path,
+							path,
+							label: parts[i - 1],
+							parentPath: parts.slice(0, i - 1).join('/'),
+							registerIds: []
+						});
+					if (i === parts.length) groupMap.get(path)!.registerIds.push(node.id);
+				}
+			}
 		}
 	const structDefinitions = [...scopeRanges.entries()].flatMap(([scope, scopeRange]) =>
 		[...scope.structs.values()].map((s) => ({
@@ -887,6 +949,7 @@ function elaborate(source: string, parsed: ParsedDocument, diagnostics: Diagnost
 		properties,
 		enums,
 		structs: structDefinitions,
+		groups: [...groupMap.values()],
 		valid: !diagnostics.some((d) => d.severity === 'error')
 	};
 }
