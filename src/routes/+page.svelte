@@ -2,7 +2,19 @@
 	import { onMount, tick } from 'svelte';
 	import { SvelteDate } from 'svelte/reactivity';
 	import { provideDrafts } from '$lib/ui/drafts';
-	import { FilePlus, FolderOpen, Copy, RefreshCw, Trash2 } from '@lucide/svelte';
+	import {
+		FilePlus,
+		FolderOpen,
+		Copy,
+		RefreshCw,
+		Trash2,
+		MousePointerClick,
+		MountainSnow,
+		Save,
+		ShieldCheck,
+		TriangleAlert,
+		Upload
+	} from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Resizable from '$lib/components/ui/resizable';
@@ -14,6 +26,8 @@
 	import RegisterEditor from '$lib/components/original/RegisterEditor.svelte';
 	import FolderView from '$lib/components/original/FolderView.svelte';
 	import ProblemsPanel from '$lib/components/original/ProblemsPanel.svelte';
+	import StatusBar from '$lib/components/original/StatusBar.svelte';
+	import ShortcutsDialog from '$lib/components/original/ShortcutsDialog.svelte';
 	import CreateRegisterDialog from '$lib/components/original/CreateRegisterDialog.svelte';
 	import MoveDialog from '$lib/components/original/MoveDialog.svelte';
 	let restoringDrafts = false;
@@ -77,7 +91,9 @@
 	let ready = $state(false),
 		confirm = $state<(() => void) | undefined>(),
 		parseDismissed = $state(false),
-		conflictDismissed = $state(false);
+		conflictDismissed = $state(false),
+		shortcutsOpen = $state(false),
+		draggingFile = $state(false);
 	let selected = $derived(session.compilation.nodes.find((n) => n.id === session.selectedId));
 	let register = $derived(
 		selected?.kind === 'field'
@@ -98,16 +114,31 @@
 	async function load(kind: 'new' | 'open') {
 		if (await (kind === 'new' ? session.newDocument() : session.open())) resetView();
 	}
+	function openDroppedFile(file: File) {
+		void request(async () => {
+			if (await session.open(file)) resetView();
+		});
+	}
+	function dropFile(event: DragEvent) {
+		event.preventDefault();
+		draggingFile = false;
+		const file = event.dataTransfer?.files?.[0];
+		if (file) openDroppedFile(file);
+	}
 	async function request(action: () => void) {
 		if (!(await prepare())) return;
 		if (session.dirty) confirm = action;
 		else action();
 	}
 	function keyboard(event: KeyboardEvent) {
-		if (
-			event.key === '/' &&
-			!(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
-		) {
+		const target = event.target;
+		const typing = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+		if (event.key === '?' && !typing && !event.ctrlKey && !event.metaKey) {
+			event.preventDefault();
+			shortcutsOpen = true;
+			return;
+		}
+		if (event.key === '/' && !typing) {
 			event.preventDefault();
 			document.querySelector<HTMLInputElement>('[aria-label="Search registers"]')?.focus();
 		}
@@ -159,6 +190,8 @@
 >
 <svelte:window
 	onkeydown={keyboard}
+	ondragover={(event) => event.preventDefault()}
+	ondrop={(event) => event.preventDefault()}
 	onbeforeunload={(event) => {
 		if (session.dirty || drafts.dirty) {
 			event.preventDefault();
@@ -182,23 +215,85 @@
 		{workspace}
 		open={() => request(() => void load('open'))}
 		newDocument={() => request(() => void load('new'))}
+		shortcuts={() => (shortcutsOpen = true)}
 		quit={() =>
 			request(() => {
 				session.close();
 				resetView();
 			})}
 	/>{#if !session.hasDocument}<main
-			class="flex min-h-0 flex-1 items-center justify-center bg-background text-foreground"
+			class="flex min-h-0 flex-1 items-center justify-center bg-background p-6 text-foreground"
+			ondragover={(event) => {
+				event.preventDefault();
+				draggingFile = true;
+			}}
+			ondragenter={(event) => {
+				event.preventDefault();
+				draggingFile = true;
+			}}
+			ondragleave={(event) => {
+				const next = event.relatedTarget;
+				if (!(next instanceof Node) || !event.currentTarget.contains(next)) draggingFile = false;
+			}}
+			ondrop={dropFile}
 		>
-			<section class="flex flex-col items-center gap-6">
-				<h1 class="text-3xl font-semibold tracking-normal">Everest</h1>
-				<div class="flex items-center gap-3">
-					<Button variant="outline" size="lg" disabled={session.busy} onclick={() => load('open')}
-						><FolderOpen size={14} />Open RDL</Button
-					><Button size="lg" disabled={session.busy} onclick={() => load('new')}
-						><FilePlus size={14} />New RDL</Button
+			<section
+				class={[
+					'w-full max-w-md rounded-xl border bg-card p-8 text-card-foreground shadow-sm transition-colors',
+					draggingFile && 'border-primary ring-2 ring-primary/25'
+				]}
+			>
+				<div class="flex flex-col items-center text-center">
+					<span
+						aria-hidden="true"
+						class="grid size-12 place-items-center rounded-xl bg-primary/12 text-primary ring-1 ring-primary/20 ring-inset"
+						><MountainSnow size={24} /></span
+					>
+					<h1 class="mt-4 text-2xl font-semibold tracking-tight">Everest</h1>
+					<p class="mt-1.5 text-sm text-muted-foreground">
+						Edit SystemRDL registers and fields in a visual editor.
+					</p>
+				</div>
+				<div class="mt-6 flex flex-col gap-2">
+					<Button size="lg" disabled={session.busy} onclick={() => load('open')}
+						><FolderOpen size={15} />Open RDL</Button
+					><Button variant="outline" size="lg" disabled={session.busy} onclick={() => load('new')}
+						><FilePlus size={15} />New RDL</Button
 					>
 				</div>
+				<div
+					class={[
+						'mt-3 flex items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2.5 text-xs transition-colors',
+						draggingFile
+							? 'border-primary bg-primary/5 font-medium text-foreground'
+							: 'border-border text-muted-foreground'
+					]}
+				>
+					<Upload size={13} />
+					{draggingFile ? 'Drop to open' : 'Or drop a .rdl file here'}
+				</div>
+				<ul class="mt-6 space-y-2.5 border-t pt-5 text-xs text-muted-foreground">
+					<li class="flex items-start gap-2">
+						<ShieldCheck size={14} class="mt-px shrink-0 text-chart-2" />
+						<span>Files stay on your device. All work happens in the browser.</span>
+					</li>
+					<li class="flex items-start gap-2">
+						<MousePointerClick size={14} class="mt-px shrink-0 text-primary" />
+						<span>Change registers, fields, and encodings with visual controls.</span>
+					</li>
+					<li class="flex items-start gap-2">
+						<Save size={14} class="mt-px shrink-0 text-muted-foreground" />
+						<span>Save back to the opened file, or download a new copy.</span>
+					</li>
+				</ul>
+				<p class="mt-4 border-t pt-4 text-center text-xs text-muted-foreground">
+					Press
+					<kbd
+						class="rounded border bg-muted px-1 py-0.5 font-sans text-[10px] font-medium text-foreground/80"
+						>?</kbd
+					>
+					for keyboard shortcuts.
+				</p>
 			</section>
 		</main>{:else}<div class="flex min-h-0 flex-1 flex-col bg-background">
 			<div class="flex min-h-0 flex-1">
@@ -214,6 +309,7 @@
 					>{/if}
 			</div>
 			<ProblemsPanel {session} {workspace} />
+			<StatusBar {session} {workspace} />
 		</div>{/if}
 </div>
 {#snippet editorPane()}<div class="flex h-full min-w-0 flex-col">
@@ -225,12 +321,33 @@
 						{session}
 						{workspace}
 					/>{:else}<RegisterEditor {session} node={register} {workspace} />{/if}{/if}
+			{#if !session.compilation.valid}<div class="flex h-full items-center justify-center p-6">
+					<section
+						class="w-full max-w-sm rounded-xl border bg-card p-6 text-center text-card-foreground shadow-sm"
+					>
+						<span
+							aria-hidden="true"
+							class="mx-auto grid size-10 place-items-center rounded-lg bg-destructive/10 text-destructive"
+							><TriangleAlert size={20} /></span
+						>
+						<h2 class="mt-3 text-base font-semibold">This document has errors</h2>
+						<p class="mt-1 text-sm text-muted-foreground">
+							{session.compilation.diagnostics.length}
+							{session.compilation.diagnostics.length === 1 ? 'problem blocks' : 'problems block'}
+							saving. The file stays unchanged until you correct it.
+						</p>
+						<Button variant="outline" class="mt-4" onclick={() => (workspace.problemsOpen = true)}
+							>Show problems</Button
+						>
+					</section>
+				</div>{/if}
 		</main>
 	</div>{/snippet}
 {#if session.hasDocument && session.compilation.valid}<CreateRegisterDialog
 		{session}
 		{workspace}
 	/><MoveDialog {session} {workspace} />{/if}
+<ShortcutsDialog bind:open={shortcutsOpen} />
 <Dialog.Root
 	open={!!confirm}
 	onOpenChange={(open) => {

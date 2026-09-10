@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { useDrafts } from '$lib/ui/drafts';
 	const drafts = useDrafts();
-	import { Cpu, FolderPlus, FolderTree, LocateFixed, MoveRight, Plus } from '@lucide/svelte';
+	import { Cpu, FolderPlus, FolderTree, MapPinHouse, MoveRight, Plus } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
 	import Control from './Control.svelte';
 	import Breadcrumbs from './Breadcrumbs.svelte';
 	import type { EditorSession } from '$lib/editor/session.svelte';
@@ -34,6 +35,17 @@
 		}
 		return result;
 	});
+	let children = $derived(paths.filter((p) => groupParent(p) === path));
+	let used = $derived(
+		registers.reduce(
+			(max, n) =>
+				(n.address ?? 0n) + (n.size ?? 1n) > max ? (n.address ?? 0n) + (n.size ?? 1n) : max,
+			0n
+		)
+	);
+	function count(child: string) {
+		return registers.filter((n) => (n.groupPath ?? '') === child).length;
+	}
 	async function addFolder() {
 		if (!(await drafts.flush())) return;
 		const next = newGroup(paths, path);
@@ -64,10 +76,10 @@
 	}
 </script>
 
-<div class="border-b px-6 py-5" data-folder-view={workspace.selectedGroup ?? ''}>
-	<div class="flex items-start justify-between gap-6 max-[900px]:flex-col">
-		<div class="min-w-0">
-			<div class="mb-3"><Breadcrumbs {session} {workspace} /></div>
+<div class="border-b px-6 py-5 max-[900px]:px-3" data-folder-view={workspace.selectedGroup ?? ''}>
+	<div class="mb-4"><Breadcrumbs {session} {workspace} /></div>
+	<div class="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+		<div class="w-full max-w-xs">
 			<Control
 				label="Name"
 				ariaLabel="Folder display name"
@@ -76,7 +88,7 @@
 				disabled={!path && !root?.editable}
 			/>
 		</div>
-		<div class="flex shrink-0 flex-wrap items-center gap-2">
+		<div class="flex flex-wrap items-center gap-2">
 			{#if path}<Button
 					variant="outline"
 					size="lg"
@@ -86,9 +98,8 @@
 				>{/if}<Button variant="outline" size="lg" onclick={addFolder}
 				><FolderPlus size={14} />Add Folder</Button
 			><Button variant="outline" size="lg" onclick={findFree}
-				><LocateFixed size={14} />Find Free Address</Button
+				><MapPinHouse size={14} />Find Free Address</Button
 			><Button
-				variant="outline"
 				size="lg"
 				onclick={async () => {
 					if (!(await drafts.flush())) return;
@@ -100,30 +111,49 @@
 		</div>
 	</div>
 </div>
-<section class="max-w-4xl px-6 py-5">
-	<div
-		class="mb-2 grid grid-cols-[7rem_1fr] gap-4 px-3 text-sm font-semibold text-muted-foreground uppercase"
-	>
-		<span>Address</span><span>Name</span>
+<section class="max-w-5xl px-6 py-5 max-[900px]:px-3">
+	<div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+		<h2 class="text-sm font-semibold">Registers</h2>
+		<p class="text-xs text-muted-foreground">
+			{registers.length}
+			{registers.length === 1 ? 'register' : 'registers'}{#if used}
+				·
+				<span class="font-mono">{address(used - 1n)}</span> highest address{/if}
+		</p>
 	</div>
-	<div class="overflow-hidden rounded-md border bg-card">
-		{#if workspace.navigationOrder === 'document'}{#each paths.filter((p) => groupParent(p) === path) as child (child)}<button
-					class="grid w-full grid-cols-[7rem_1fr] items-center gap-4 border-b px-3 py-3 text-left hover:bg-muted"
+	<div class="overflow-hidden rounded-lg border bg-card shadow-xs">
+		<div
+			class="grid grid-cols-[7rem_minmax(0,1fr)] gap-4 border-b bg-muted/40 px-3 py-2 text-xs font-medium tracking-wide text-muted-foreground uppercase"
+		>
+			<span>Address</span><span>Name</span>
+		</div>
+		{#if workspace.navigationOrder === 'document'}{#each children as child (child)}<button
+					class="grid w-full grid-cols-[7rem_minmax(0,1fr)] items-center gap-4 border-b border-border/60 px-3 py-3 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
 					onclick={() => (workspace.selectedGroup = child)}
-					><span class="font-mono text-muted-foreground">--</span><span
-						class="flex items-center gap-3"><FolderTree size={15} />{child.split('/').at(-1)}</span
+					><span class="font-mono text-sm text-muted-foreground/70">--</span><span
+						class="flex min-w-0 items-center gap-3"
+						><span
+							class="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
+							><FolderTree size={15} /></span
+						><span class="truncate font-medium">{child.split('/').at(-1)}</span><Badge
+							variant="secondary"
+							class="shrink-0 font-normal"
+							>{count(child)}
+							{count(child) === 1 ? 'register' : 'registers'}</Badge
+						></span
 					></button
 				>{/each}{/if}{#each registers as node (node.id)}{#if workspace.showReservedGaps}{#each gaps.filter((g) => g.end === (node.address ?? 0n) - 1n) as gap (String(gap.start))}<div
-						class="grid grid-cols-[7rem_1fr_auto] items-center gap-4 border-b border-dashed bg-muted/30 px-3 py-3"
+						class="grid grid-cols-[7rem_minmax(0,1fr)_auto] items-center gap-4 border-y border-dashed border-border bg-muted/20 px-3 py-3"
 					>
 						<span class="font-mono text-sm text-muted-foreground"
-							>{address(gap.start)}-{address(gap.end)}</span
+							>{address(gap.start)}–{address(gap.end)}</span
 						><span class="text-sm text-muted-foreground"
-							>Reserved, <span class="font-mono"
+							>Reserved · <span class="font-mono"
 								>{String(gap.end - gap.start + 1n)} bytes available</span
 							></span
 						><Button
 							variant="outline"
+							size="sm"
 							data-gap-action={String(gap.start)}
 							onclick={async () => {
 								if (!(await drafts.flush())) return;
@@ -133,7 +163,7 @@
 							}}><Plus size={14} />Add Register</Button
 						>
 					</div>{/each}{/if}<button
-				class="grid w-full grid-cols-[7rem_1fr] items-center gap-4 border-b px-3 py-3 text-left last:border-0 hover:bg-muted"
+				class="grid w-full grid-cols-[7rem_minmax(0,1fr)] items-center gap-4 border-b border-border/60 px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-muted focus-visible:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
 				onclick={async () => {
 					if (!(await drafts.flush())) return;
 					workspace.selectedGroup = undefined;
@@ -142,23 +172,28 @@
 				><span class="font-mono text-base text-muted-foreground">{address(node.address)}</span><span
 					class="flex min-w-0 items-center gap-3"
 					><span
-						class="inline-flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary"
+						class="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"
 						><Cpu size={15} /></span
 					><span class="min-w-0"
 						><span class="block truncate font-medium">{title(node)}</span><span
-							class="block truncate font-mono text-base text-muted-foreground">{node.id}</span
+							class="block truncate font-mono text-xs text-muted-foreground">{node.id}</span
 						></span
 					></span
 				></button
-			>{/each}{#if !registers.length && !paths.some((p) => groupParent(p) === path)}<div
-				class="flex min-h-48 flex-col items-center justify-center gap-3"
+			>{/each}{#if !registers.length && !children.length}<div
+				class="flex min-h-48 flex-col items-center justify-center gap-3 px-6 py-10 text-center"
 			>
+				<span
+					class="inline-flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground"
+					><Cpu size={18} /></span
+				>
 				<p class="font-medium">No registers yet</p>
-				<p class="text-sm text-muted-foreground">Add a register to define this addrmap.</p>
-				<div class="flex gap-2">
+				<p class="text-sm text-muted-foreground">
+					Add a register to define this addrmap, or create a folder to group them.
+				</p>
+				<div class="mt-1 flex gap-2">
 					<Button variant="outline" onclick={addFolder}><FolderPlus size={14} />Add Folder</Button
 					><Button
-						variant="outline"
 						onclick={async () => {
 							if (!(await drafts.flush())) return;
 							workspace.createRange = undefined;

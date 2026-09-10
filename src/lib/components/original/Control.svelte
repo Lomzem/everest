@@ -126,6 +126,7 @@
 					{placeholder}
 					class={[
 						'min-w-0 border-0 bg-transparent shadow-none focus-visible:ring-0',
+						prefix && 'pl-1.5',
 						mono && 'font-mono'
 					]}
 					onblur={apply}

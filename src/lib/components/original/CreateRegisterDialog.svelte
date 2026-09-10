@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { untrack, tick } from 'svelte';
 	import { useDrafts } from '$lib/ui/drafts';
+	import { Cpu } from '@lucide/svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Select from '$lib/components/ui/select';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
+	import { Badge } from '$lib/components/ui/badge';
 	import type { EditorSession } from '$lib/editor/session.svelte';
 	import type { Workspace } from '$lib/ui/workspace.svelte';
 	import { groups, address, title } from '$lib/ui/original';
@@ -176,80 +178,105 @@
 			}}
 		>
 			<Dialog.Header
-				><Dialog.Title>Create Register</Dialog.Title><Dialog.Description
-					class="text-sm text-foreground"
-					>{#if range}<span class="font-mono"
-							>{address(range.start)}–{address(range.end)} · {capacity}
-							{capacity === 1n ? 'byte' : 'bytes'} available</span
-						>{:else if !registers.length}Empty map · starting at <span class="font-mono">0x00</span
-						>{:else}Next free address selected.{/if}</Dialog.Description
+				><Dialog.Title class="flex items-center gap-2"
+					><span
+						class="inline-flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary"
+						><Cpu size={15} /></span
+					>Create Register</Dialog.Title
+				><Dialog.Description
+					>{#if range}Address range <span class="font-mono"
+							>{address(range.start)}–{address(range.end)}</span
+						>
+						with <span class="font-mono">{capacity}</span>
+						{capacity === 1n ? 'byte' : 'bytes'} available.{:else if !registers.length}This map is
+						empty, so the register starts at <span class="font-mono">0x00</span>.{:else}The next
+						free address is selected.{/if}</Dialog.Description
 				></Dialog.Header
 			>
-			<label class="grid gap-1.5"
-				><span class="font-medium">Name</span><Input
-					bind:ref={nameInput}
-					aria-label="Register display name"
-					bind:value={name}
-					oninput={(event) => {
-						name = event.currentTarget.value;
-						if (!edited)
-							identifier = name
-								.trim()
-								.toLowerCase()
-								.replace(/[^a-z0-9_]+/g, '_')
-								.replace(/^([^a-z_])/, '_$1');
-					}}
-				/></label
-			>
-			<label class="grid gap-1.5"
-				><span class="font-medium">ID</span><Input
-					aria-label="ID, register identifier"
-					bind:value={identifier}
-					oninput={() => (edited = true)}
-					aria-invalid={attempted && !!identifierError}
-				/>{#if attempted && identifierError}<span role="alert" class="text-sm"
-						>{identifierError}</span
-					>{/if}</label
-			>
-			<div class="grid grid-cols-2 gap-4 max-[900px]:grid-cols-1">
-				<label class="grid gap-1.5"
-					><span class="font-medium">Address</span><Input
-						aria-label="Register address"
-						bind:value={addressText}
-						oninput={() => (addressEdited = true)}
-						aria-invalid={!!placementError}
-					/></label
-				><label class="grid gap-1.5"
-					><span class="font-medium">Width</span><Input
-						aria-label="Register width in bits"
-						type="number"
-						min="1"
-						max="65536"
-						step="1"
-						value={widthText}
-						oninput={(event) => updateWidth(event.currentTarget.value)}
-						aria-invalid={!bytes || (capacity !== undefined && bytes > capacity)}
-					/></label
-				>
+			<div class="grid gap-4">
+				<div class="grid grid-cols-2 gap-4 max-[900px]:grid-cols-1">
+					<label class="grid gap-1.5"
+						><span class="text-sm font-medium">Name</span><Input
+							bind:ref={nameInput}
+							aria-label="Register display name"
+							placeholder="Control register"
+							bind:value={name}
+							oninput={(event) => {
+								name = event.currentTarget.value;
+								if (!edited)
+									identifier = name
+										.trim()
+										.toLowerCase()
+										.replace(/[^a-z0-9_]+/g, '_')
+										.replace(/^([^a-z_])/, '_$1');
+							}}
+						/></label
+					>
+					<label class="grid gap-1.5"
+						><span class="text-sm font-medium">ID</span><Input
+							aria-label="ID, register identifier"
+							placeholder="control"
+							class="font-mono"
+							bind:value={identifier}
+							oninput={() => (edited = true)}
+							aria-invalid={attempted && !!identifierError}
+						/>{#if attempted && identifierError}<span role="alert" class="text-xs text-destructive"
+								>{identifierError}</span
+							>{/if}</label
+					>
+				</div>
+				<div class="grid grid-cols-2 gap-4 max-[900px]:grid-cols-1">
+					<label class="grid gap-1.5"
+						><span class="text-sm font-medium">Address</span><Input
+							aria-label="Register address"
+							class="font-mono"
+							bind:value={addressText}
+							oninput={() => (addressEdited = true)}
+							aria-invalid={!!placementError}
+						/></label
+					><label class="grid gap-1.5"
+						><span class="text-sm font-medium">Width (bits)</span><Input
+							aria-label="Register width in bits"
+							class="font-mono"
+							type="number"
+							min="1"
+							max="65536"
+							step="1"
+							value={widthText}
+							oninput={(event) => updateWidth(event.currentTarget.value)}
+							aria-invalid={!bytes || (capacity !== undefined && bytes > capacity)}
+						/></label
+					>
+				</div>
+				<div id="register-placement-guidance" class="min-w-0 space-y-1.5 text-sm">
+					{#if placementError}<p role="alert" class="text-destructive">{placementError}</p>{:else}<p
+							class="flex flex-wrap items-center gap-2 text-muted-foreground"
+						>
+							<Badge variant="outline" class="font-mono font-normal"
+								>{location === undefined ? '--' : address(location)}</Badge
+							><span aria-hidden="true">·</span>
+							<span>{bytes || '--'} {bytes === 1n ? 'byte' : 'bytes'}</span>
+							{#if misaligned}<span aria-hidden="true">·</span><span class="text-destructive"
+									>Not naturally aligned</span
+								>{/if}
+						</p>{/if}
+				</div>
+				<div class="grid gap-1.5">
+					<span class="text-sm font-medium">Group</span><Select.Root
+						type="single"
+						bind:value={group}
+						><Select.Trigger class="w-full" aria-label="Group, destination group"
+							>{group || `${root ? title(root) : 'addrmap'} (root)`}</Select.Trigger
+						><Select.Content
+							><Select.Item value="">{root ? title(root) : 'addrmap'} (root)</Select.Item
+							>{#each groups(session.compilation, workspace.emptyGroups) as path (path)}<Select.Item
+									value={path}>{path}</Select.Item
+								>{/each}</Select.Content
+						></Select.Root
+					>
+				</div>
+				{#if session.error}<p role="alert" class="text-sm text-destructive">{session.error}</p>{/if}
 			</div>
-			<div id="register-placement-guidance" class="min-w-0 space-y-1 text-sm">
-				{#if placementError}<p role="alert">{placementError}</p>{:else if misaligned}<p>
-						Warning: this address is not naturally aligned to {bytes} bytes.
-					</p>{/if}
-			</div>
-			<div class="grid gap-1.5">
-				<span class="font-medium">Group</span><Select.Root type="single" bind:value={group}
-					><Select.Trigger class="w-full" aria-label="Group, destination group"
-						>{group || `${root ? title(root) : 'addrmap'} (root)`}</Select.Trigger
-					><Select.Content
-						><Select.Item value="">{root ? title(root) : 'addrmap'} (root)</Select.Item
-						>{#each groups(session.compilation, workspace.emptyGroups) as path (path)}<Select.Item
-								value={path}>{path}</Select.Item
-							>{/each}</Select.Content
-					></Select.Root
-				>
-			</div>
-			{#if session.error}<p role="alert" class="text-sm">{session.error}</p>{/if}
 			<Dialog.Footer
 				><Button type="button" variant="outline" size="lg" class="min-h-11 min-w-11" onclick={close}
 					>Cancel</Button

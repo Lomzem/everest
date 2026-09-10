@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { tick, onMount, onDestroy } from 'svelte';
-	import { Search } from '@lucide/svelte';
+	import { Braces, Cpu, Hash, Search, Tag } from '@lucide/svelte';
 	import { Input } from '$lib/components/ui/input';
-	import { Badge } from '$lib/components/ui/badge';
 	import type { EditorSession } from '$lib/editor/session.svelte';
 	import type { Workspace } from '$lib/ui/workspace.svelte';
-	import { searchDocument } from '$lib/ui/search';
+	import { searchDocument, type SearchResult } from '$lib/ui/search';
 	let { session, workspace }: { session: EditorSession; workspace: Workspace } = $props();
 	let input = $state<HTMLInputElement | null>(null),
 		active = $state(-1);
@@ -116,6 +115,28 @@
 		result.push({ text: text.slice(start), match: false });
 		return result;
 	}
+	const kinds: Record<SearchResult['kind'], { label: string; icon: typeof Cpu; class: string }> = {
+		register: {
+			label: 'Register',
+			icon: Cpu,
+			class: 'bg-primary/10 text-primary ring-primary/20'
+		},
+		field: {
+			label: 'Field',
+			icon: Hash,
+			class: 'bg-chart-2/15 text-chart-2 ring-chart-2/25'
+		},
+		enum: {
+			label: 'Enum',
+			icon: Braces,
+			class: 'bg-chart-4/15 text-chart-4 ring-chart-4/25'
+		},
+		'enum-member': {
+			label: 'Encoding',
+			icon: Tag,
+			class: 'bg-muted text-muted-foreground ring-border'
+		}
+	};
 </script>
 
 {#snippet highlighted(text: string)}{#each parts(text) as part, index (index)}{#if part.match}<mark
@@ -167,26 +188,53 @@
 			role="listbox"
 			class="relative z-50 mt-2 max-h-[min(46vh,21.0625rem)] snap-y [scrollbar-width:thin] [scrollbar-color:var(--muted-foreground)_var(--muted)] [scrollbar-gutter:stable] overflow-y-scroll rounded-lg border bg-popover p-1.5 text-popover-foreground shadow-xl"
 		>
-			{#each results as result, index (result.id)}<button
+			{#each results as result, index (result.id)}{@const meta =
+					kinds[result.kind]}{@const KindIcon = meta.icon}<button
 					type="button"
 					id={`document-search-result-${index}`}
 					role="option"
 					aria-selected={active === index}
-					class="grid h-14 w-full snap-start grid-cols-[7.5rem_minmax(0,1fr)] items-start gap-2 rounded-md px-3 py-2 text-left hover:bg-muted focus-visible:bg-muted focus-visible:outline-none aria-selected:bg-muted max-[700px]:grid-cols-[6.5rem_minmax(0,1fr)]"
+					class="grid h-12 w-full snap-start grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-2 rounded-md px-2 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none aria-selected:bg-muted max-[700px]:grid-cols-[5rem_minmax(0,1fr)]"
 					onmouseenter={() => (active = index)}
 					onclick={() => select(index)}
-					><Badge variant="outline" class="mt-0.5 justify-self-start"
-						>{result.kind.replace('-', ' ')}</Badge
+					><span
+						class={[
+							'mt-0 inline-flex items-center gap-1.5 justify-self-start rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset',
+							meta.class
+						]}><KindIcon size={12} />{meta.label}</span
 					><span class="min-w-0"
 						><span class="block truncate text-sm font-medium"
 							>{@render highlighted(result.label)}</span
-						><span class="mt-0.5 block truncate font-mono text-xs text-muted-foreground"
+						><span class="block truncate font-mono text-xs text-muted-foreground"
 							>{@render highlighted(result.context)}</span
 						></span
 					></button
-				>{:else}<p class="px-3 py-7 text-center text-sm text-muted-foreground">
-					No matching registers or fields
-				</p>{/each}
+				>{:else}<div class="px-3 py-7 text-center">
+					<p class="text-sm text-muted-foreground">
+						No register, field, or encoding matches “{workspace.search.trim()}”.
+					</p>
+					<p class="mt-1 text-xs text-muted-foreground/80">
+						Try a register ID, a bit range such as 3, or an address.
+					</p>
+				</div>{/each}
+			{#if results.length}<div
+					class="mt-1 flex flex-wrap items-center justify-between gap-2 border-t px-2 pt-2 pb-1 text-xs text-muted-foreground"
+				>
+					<span
+						>{results.length}
+						{results.length === 1 ? 'result' : 'results'}</span
+					><span class="flex items-center gap-3">
+						<span class="hidden items-center gap-1 sm:inline-flex"
+							><kbd class="rounded border px-1 font-sans text-[10px]">↑</kbd><kbd
+								class="rounded border px-1 font-sans text-[10px]">↓</kbd
+							> move</span
+						><span class="hidden items-center gap-1 sm:inline-flex"
+							><kbd class="rounded border px-1 font-sans text-[10px]">Enter</kbd> open</span
+						><span class="hidden items-center gap-1 sm:inline-flex"
+							><kbd class="rounded border px-1 font-sans text-[10px]">Esc</kbd> close</span
+						>
+					</span>
+				</div>{/if}
 		</div>{/if}
 	<p class="sr-only" aria-live="polite">
 		{workspace.search.trim() ? `${results.length} search results` : ''}

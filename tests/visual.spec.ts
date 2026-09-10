@@ -50,12 +50,10 @@ test('uses the reference dark theme, resizable sidebar and shadcn settings contr
 	await page.getByRole('button', { name: 'Settings', exact: true }).click();
 	const dialog = page.getByRole('dialog');
 	await expect(dialog).toBeVisible();
-	const theme = dialog.getByRole('button', { name: 'Theme', exact: true });
-	await theme.click();
-	await page.getByRole('option', { name: 'Light', exact: true }).click();
+	const theme = dialog.getByRole('radiogroup', { name: 'Theme', exact: true });
+	await theme.getByRole('radio', { name: 'Light', exact: true }).click();
 	await expect(page.locator('html')).not.toHaveClass(/dark/);
-	await theme.click();
-	await page.getByRole('option', { name: 'Dark', exact: true }).click();
+	await theme.getByRole('radio', { name: 'Dark', exact: true }).click();
 	await expect(page.locator('html')).toHaveClass(/dark/);
 	await dialog.getByRole('switch', { name: 'Show reserved gaps', exact: true }).click();
 	await page.screenshot({ path: `/tmp/everest-restored-${browserName}-settings.png` });
