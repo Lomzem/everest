@@ -30,6 +30,13 @@
 		}
 		return result;
 	});
+	let axisBits = $derived.by(() => {
+		const step = width > 16 ? 8 : width > 8 ? 4 : 1;
+		const bits: number[] = [];
+		for (let bit = width - 1; bit >= 0; bit--)
+			if (bit % step === 0 || bit === width - 1) bits.push(bit);
+		return bits;
+	});
 	async function navigate(field: RdlNode) {
 		if (!workspace.expandedFields.includes(field.id))
 			workspace.expandedFields = [...workspace.expandedFields, field.id];
@@ -60,30 +67,38 @@
 </script>
 
 <div class="border-b px-6 py-5 max-[900px]:px-3" data-register-editor={node.id}>
-	<div class="mb-4"><Breadcrumbs {session} {workspace} {node} /></div>
-	<div class="mb-4 flex items-start justify-between gap-4">
-		<div class="w-32">
-			<Control
-				disabled={!node.editable}
-				label="Address"
-				value={(node.address ?? 0n).toString(16).toUpperCase().padStart(2, '0')}
-				prefix="@ 0x"
-				mono
-				commit={(value) =>
-					session.edit({ type: 'set-address', nodeId: node.id, value: '0x' + value })}
-			/>
-		</div>
-		<div class="flex items-center gap-3">
+	<div class="mb-4 flex items-center justify-between gap-4">
+		<Breadcrumbs {session} {workspace} {node} />
+		<span
+			class="shrink-0 rounded-md bg-muted px-2 py-0.5 font-mono text-[11px] text-muted-foreground tabular-nums"
+			>{width} bits</span
+		>
+	</div>
+	<div class="flex flex-wrap items-end gap-x-6 gap-y-3">
+		<div class="flex items-end gap-2">
+			<div class="w-24">
+				<Control
+					disabled={!node.editable}
+					label="Address"
+					value={(node.address ?? 0n).toString(16).toUpperCase().padStart(2, '0')}
+					prefix="0x"
+					mono
+					commit={(value) =>
+						session.edit({ type: 'set-address', nodeId: node.id, value: '0x' + value })}
+				/>
+			</div>
 			<Button
 				variant="outline"
-				size="lg"
-				class="mt-6"
 				disabled={!node.editable}
+				aria-label="Move register"
+				title="Move to another folder"
 				onclick={async () => {
 					const current = await flushNode(drafts, session, node);
 					if (current) workspace.moveNode = current.id;
 				}}><MoveRight size={14} />Move</Button
 			>
+		</div>
+		<div class="ml-auto flex items-end gap-3">
 			<div class="w-24">
 				<Control
 					disabled={!node.editable}
@@ -106,14 +121,14 @@
 			</div>
 		</div>
 	</div>
-	<Control
-		disabled={!node.editable}
-		label="Name"
-		ariaLabel="Register display name"
-		value={title(node)}
-		commit={(value) => updateTitle(session, workspace, node, value)}
-	/>
-	<div class="mt-2">
+	<div class="mt-4 grid gap-x-4 gap-y-3 sm:grid-cols-2">
+		<Control
+			disabled={!node.editable}
+			label="Name"
+			ariaLabel="Register display name"
+			value={title(node)}
+			commit={(value) => updateTitle(session, workspace, node, value)}
+		/>
 		<Control
 			disabled={!node.editable}
 			label="ID"
@@ -148,40 +163,54 @@
 	</div>
 </div>
 <section class="px-6 py-5 max-[900px]:px-3">
-	<h2 class="mb-3 text-sm font-semibold">Bit Layout</h2>
-	<div class="relative mb-1 h-4 text-xs text-muted-foreground" data-bit-axis>
-		{#each [...new Set( [width - 1, ...Array.from({ length: Math.floor((width - 1) / 8) }, (_, i) => (Math.floor((width - 1) / 8) - i) * 8), 0] )] as bit (bit)}<span
-				class="absolute top-0 -translate-x-1/2"
-				style:left={`${((width - 1 - bit) / Math.max(1, width - 1)) * 100}%`}>{bit}</span
+	<div class="mb-3 flex items-baseline justify-between gap-3">
+		<h2 class="text-sm font-semibold">Bit Layout</h2>
+		<span class="font-mono text-[11px] text-muted-foreground tabular-nums">
+			bits {width - 1}:0
+		</span>
+	</div>
+	<div class="relative h-5 font-mono text-[11px] text-muted-foreground" data-bit-axis>
+		{#each axisBits as bit (bit)}<span
+				class="absolute top-0 -translate-x-1/2 tabular-nums"
+				style:left={`${((width - 1 - bit + 0.5) / width) * 100}%`}>{bit}</span
 			>{/each}
 	</div>
 	<div
-		class="grid h-10 overflow-hidden rounded-md border"
+		class="grid h-11 overflow-hidden rounded-md border bg-muted/20"
 		style:grid-template-columns={`repeat(${width},minmax(0,1fr))`}
 	>
-		{#each runs as run (run.start)}{#if run.field}<button
-					class="min-w-0 truncate border-r px-2 text-center text-sm last:border-r-0 hover:bg-accent"
-					style:grid-column={`span ${run.start - run.end + 1}`}
-					style:background={`color-mix(in oklch,var(--chart-${(fields.indexOf(run.field) % 5) + 1}) 15%, transparent)`}
+		{#each runs as run (run.start)}
+			{@const span = run.start - run.end + 1}
+			{#if run.field}<button
+					class="flex min-w-0 items-center justify-center gap-1 overflow-hidden border-r border-border/50 px-1 text-xs transition-[filter] last:border-r-0 hover:brightness-125 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+					style:grid-column={`span ${span}`}
+					style:background={`color-mix(in oklch,var(--chart-${(fields.indexOf(run.field) % 5) + 1}) 18%, transparent)`}
 					data-bit-field={run.field.id}
 					title={`${title(run.field)} [${run.start}:${run.end}]`}
 					onclick={() => navigate(run.field!)}
-					>{title(run.field)} [{run.start === run.end
-						? run.start
-						: `${run.start}:${run.end}`}]</button
+					>{#if span >= 2}<span class="truncate font-medium">{title(run.field)}</span
+						>{/if}{#if span >= 5}<span class="shrink-0 font-mono text-[10px] opacity-70"
+							>[{run.start === run.end ? run.start : `${run.start}:${run.end}`}]</span
+						>{/if}</button
 				>{:else}<div
-					class="flex min-w-0 items-center justify-center truncate border-r bg-muted/30 px-2 text-sm text-muted-foreground last:border-r-0"
-					style:grid-column={`span ${run.start - run.end + 1}`}
+					class="flex min-w-0 items-center justify-center overflow-hidden border-r border-border/40 text-[11px] text-muted-foreground last:border-r-0"
+					style:grid-column={`span ${span}`}
 				>
-					{#if workspace.showReservedGaps}<span class="truncate"
+					{#if workspace.showReservedGaps && span >= 3}<span class="truncate px-1"
 							>Reserved [{run.start === run.end ? run.start : `${run.start}:${run.end}`}]</span
+						>{:else if workspace.showReservedGaps && span === 2}<span class="text-[10px]">··</span
 						>{/if}
-				</div>{/if}{/each}
+				</div>{/if}
+		{/each}
 	</div>
 </section>
 <section class="px-6 pb-8 max-[900px]:px-3">
 	<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-		<h2 class="text-sm font-semibold">Fields</h2>
+		<h2 class="flex items-baseline gap-2 text-sm font-semibold">
+			Fields<span class="font-mono text-[11px] font-normal text-muted-foreground tabular-nums"
+				>{fields.length}</span
+			>
+		</h2>
 		<div class="flex flex-wrap items-center justify-end gap-2">
 			<ToggleGroup.Root
 				type="single"
@@ -196,9 +225,12 @@
 					>{/each}</ToggleGroup.Root
 			><Button
 				variant="outline"
+				disabled={!fields.length || fields.every((f) => workspace.expandedFields.includes(f.id))}
 				onclick={() => (workspace.expandedFields = fields.map((f) => f.id))}>Expand All</Button
-			><Button variant="outline" onclick={() => (workspace.expandedFields = [])}
-				>Collapse All</Button
+			><Button
+				variant="outline"
+				disabled={!workspace.expandedFields.length}
+				onclick={() => (workspace.expandedFields = [])}>Collapse All</Button
 			><Button onclick={add} disabled={!node.editable}><Plus size={14} />Add Field</Button>
 		</div>
 	</div>

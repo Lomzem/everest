@@ -2,10 +2,13 @@
 	import { useDrafts } from '$lib/ui/drafts';
 	const drafts = useDrafts();
 	import {
+		ChevronsDownUp,
+		ChevronsUpDown,
 		ChevronDown,
 		ChevronRight,
 		FolderPlus,
 		FolderTree,
+		ListTree,
 		PanelLeftClose,
 		PanelLeftOpen,
 		Plus,
@@ -36,6 +39,10 @@
 	let paths = $derived(groups(session.compilation, workspace.emptyGroups));
 	let root = $derived(session.compilation.roots[0]);
 	let registers = $derived(session.compilation.nodes.filter((n) => n.kind === 'reg'));
+	let allExpanded = $derived(
+		workspace.expandedNodes.includes('') && paths.every((p) => workspace.expandedNodes.includes(p))
+	);
+	let anyExpanded = $derived(workspace.expandedNodes.length > 0);
 	function renameEvents(element: HTMLElement, originalLabel: string) {
 		const input = element.querySelector('input');
 		const keydown = (event: KeyboardEvent) => {
@@ -92,22 +99,39 @@
 		>
 	</div>
 	{#if !workspace.leftCollapsed}<div
-			class="flex items-center gap-2 border-b border-sidebar-border/40 px-3 py-2.5"
+			class="flex items-center gap-1 border-b border-sidebar-border/40 py-1.5 pr-2 pl-3"
 		>
+			<span class="mr-auto min-w-0 truncate text-[11px] text-muted-foreground">
+				{registers.length}
+				{registers.length === 1 ? 'register' : 'registers'}
+			</span>
 			<Button
-				variant="outline"
-				size="sm"
-				class="min-w-0 flex-1"
-				onclick={() =>
-					(workspace.expandedNodes = workspace.expandedNodes.length ? [] : ['', ...paths])}
-				>{workspace.expandedNodes.length ? 'Collapse All' : 'Expand All'}</Button
-			><Dropdown.Root
+				variant="ghost"
+				size="icon-sm"
+				class="text-muted-foreground"
+				aria-label="Expand all folders"
+				title="Expand all"
+				disabled={allExpanded}
+				onclick={() => (workspace.expandedNodes = ['', ...paths])}><ChevronsUpDown /></Button
+			>
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				class="text-muted-foreground"
+				aria-label="Collapse all folders"
+				title="Collapse all"
+				disabled={!anyExpanded}
+				onclick={() => (workspace.expandedNodes = [])}><ChevronsDownUp /></Button
+			>
+			<Dropdown.Root
 				><Dropdown.Trigger
 					>{#snippet child({ props })}<Button
 							{...props}
-							variant="outline"
+							variant="ghost"
 							size="icon-sm"
-							aria-label="Change navigation order"><FolderTree size={15} /></Button
+							class="text-muted-foreground"
+							aria-label="Change navigation order"
+							title="Navigation order"><ListTree /></Button
 						>{/snippet}</Dropdown.Trigger
 				><Dropdown.Content align="end"
 					><Dropdown.Label>Navigation order</Dropdown.Label><Dropdown.Separator
@@ -155,7 +179,7 @@
 									size={14}
 								/>{:else}<ChevronRight size={14} />{/if}</Button
 						><button
-							class="min-w-0 truncate text-left text-sm"
+							class="min-w-0 truncate rounded-sm text-left text-sm focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none"
 							onclick={() => {
 								workspace.selectedGroup = path;
 								if (root) session.select(root.id);
@@ -222,14 +246,14 @@
 		><ContextMenu.Trigger
 			><div
 				class={[
-					'group grid h-8 grid-cols-[minmax(0,1fr)_auto_2rem] items-center rounded-md text-sidebar-foreground hover:bg-sidebar-accent',
+					'group grid h-8 grid-cols-[minmax(0,1fr)_auto_2rem] items-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent',
 					workspace.selectedGroup === undefined &&
 						session.selectedId === node.id &&
 						'bg-accent text-accent-foreground'
 				]}
 			>
 				<button
-					class="h-8 min-w-0 truncate px-2 text-left text-sm font-medium"
+					class="h-8 min-w-0 truncate rounded-sm px-2 text-left text-sm font-medium focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none"
 					aria-current={workspace.selectedGroup === undefined && session.selectedId === node.id
 						? 'true'
 						: undefined}

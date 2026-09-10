@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import type { Diagnostic } from '$lib/rdl/types';
-	import { TriangleAlert, ChevronDown, ChevronUp, Download } from '@lucide/svelte';
+	import { CircleCheck, TriangleAlert, ChevronDown, ChevronUp, Download } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 	import type { EditorSession } from '$lib/editor/session.svelte';
 	import type { Workspace } from '$lib/ui/workspace.svelte';
@@ -30,22 +30,27 @@
 </script>
 
 <section class="shrink-0 border-t bg-background" aria-label="Document problems">
-	<div class="flex h-9 items-center justify-between px-3 text-xs">
+	<div class="flex h-9 items-center gap-3 px-2 text-xs">
 		<Button
 			variant="ghost"
-			class="text-xs"
+			size="sm"
+			class="gap-2 text-xs"
 			onclick={() => (workspace.problemsOpen = !workspace.problemsOpen)}
 			aria-expanded={workspace.problemsOpen}
-			><TriangleAlert size={16} />{count}
+			>{#if count}<TriangleAlert size={15} class="text-destructive" />{:else}<CircleCheck
+					size={15}
+					class="text-muted-foreground"
+				/>{/if}{count}
 			{count === 1 ? 'Problem' : 'Problems'}{#if workspace.problemsOpen}<ChevronDown
-					size={16}
-				/>{:else}<ChevronUp size={16} />{/if}</Button
-		>{#if !session.compilation.valid}<span class="text-destructive"
+					size={15}
+				/>{:else}<ChevronUp size={15} />{/if}</Button
+		>
+		{#if !session.compilation.valid}<span class="text-destructive"
 				>Save blocked. Fix {count} problems.</span
 			>{/if}
 	</div>
 	{#if workspace.problemsOpen || session.error}<div class="max-h-[38vh] overflow-auto border-t">
-			{#if !count}<p class="p-5 text-sm text-muted-foreground">
+			{#if !count}<p class="px-4 py-3 text-sm text-muted-foreground">
 					No document problems.
 				</p>{/if}{#each session.compilation.diagnostics as diagnostic, index (index)}<button
 					type="button"

@@ -46,40 +46,47 @@
 			class="w-1 shrink-0 self-stretch"
 			style:background={`var(--chart-${(index % 5) + 1})`}
 		></div>
-		<div
-			class="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-2 text-sm @max-[700px]:grid-cols-1 @max-[700px]:gap-2"
-		>
-			<button
-				class="grid min-w-0 grid-cols-[20px_80px_minmax(0,1fr)] items-center gap-4 text-left"
-				aria-expanded={expanded}
-				onclick={() => workspace.toggleField(field.id)}
-				>{#if expanded}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}<span
-					class="truncate font-mono text-primary">[{field.msb}:{field.lsb}]</span
-				><span class="min-w-0"
-					><span class="block truncate font-semibold">{title(field)}</span><span
-						class="block truncate font-mono text-xs text-muted-foreground">{field.name}</span
-					></span
-				></button
-			><span class="grid grid-cols-[176px_86px_86px] gap-2 text-xs"
-				><button
-					class="h-8 truncate rounded-md border border-input bg-input/20 px-2 text-center text-muted-foreground"
-					disabled={!definition}
-					onclick={() => (numericHeader = !numericHeader)}
-					>Reset: <span class="font-mono"
-						>{!numericHeader && chosen ? chosen.name : workspace.format(reset)}</span
-					></button
-				><span
-					class="flex h-8 items-center justify-center rounded-md border border-input bg-input/20 px-2"
-					>SW: {String(field.properties.sw?.value ?? 'rw').toUpperCase()}</span
-				><span
-					class="flex h-8 items-center justify-center rounded-md border border-input bg-input/20 px-2"
-					>HW: {String(field.properties.hw?.value ?? 'rw').toUpperCase()}</span
-				></span
+		<button
+			class="grid min-w-0 flex-1 grid-cols-[16px_auto_minmax(0,1fr)] items-center gap-3 rounded-md px-2 py-2 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+			aria-expanded={expanded}
+			title={`${title(field)} [${field.msb}:${field.lsb}]`}
+			onclick={() => workspace.toggleField(field.id)}
+			>{#if expanded}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}<span
+				class="rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[11px] text-primary tabular-nums"
+				>[{field.msb}:{field.lsb}]</span
+			><span class="min-w-0"
+				><span class="block truncate text-sm font-semibold">{title(field)}</span
+				>{#if title(field) !== field.name}<span
+						class="block truncate font-mono text-[11px] text-muted-foreground">{field.name}</span
+					>{/if}</span
 			>
-		</div>
+		</button>
+		<span class="flex shrink-0 items-center gap-1.5 text-[11px] @max-[560px]:hidden"
+			><button
+				class="inline-flex h-7 items-center gap-1.5 rounded-md bg-muted px-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-60"
+				disabled={!definition}
+				aria-label={`Reset value for ${field.name}`}
+				title={definition ? 'Show the numeric reset value' : 'Numeric reset value'}
+				onclick={() => (numericHeader = !numericHeader)}
+				><span>Reset</span><span class="font-mono text-foreground"
+					>{!numericHeader && chosen ? chosen.name : workspace.format(reset)}</span
+				></button
+			><span
+				class="inline-flex h-7 items-center gap-1.5 rounded-md bg-muted px-2 text-muted-foreground"
+				><span>SW</span><span class="font-mono text-foreground"
+					>{String(field.properties.sw?.value ?? 'rw').toUpperCase()}</span
+				></span
+			><span
+				class="inline-flex h-7 items-center gap-1.5 rounded-md bg-muted px-2 text-muted-foreground"
+				><span>HW</span><span class="font-mono text-foreground"
+					>{String(field.properties.hw?.value ?? 'rw').toUpperCase()}</span
+				></span
+			></span
+		>
 		<Button
 			variant="ghost"
-			size="icon-lg"
+			size="icon-sm"
+			class="text-muted-foreground hover:text-destructive"
 			aria-label={`Delete field ${field.name}`}
 			disabled={!field.editable}
 			onclick={async () => {

@@ -106,6 +106,8 @@
 		next[index] = { ...next[index], [key]: value };
 		return apply({ name: definition!.name, members: next });
 	}
+	/** A commit on blur rebuilds the card. Keep the caret so the click still lands. */
+	const keepFocus = (event: MouseEvent) => event.preventDefault();
 </script>
 
 {#if definition}<div
@@ -168,15 +170,21 @@
 						size="icon-lg"
 						aria-label={`Remove encoding ${member.name}`}
 						disabled={!field.editable || !definition.editable}
+						onmousedown={keepFocus}
 						onclick={() => remove(index)}><Trash2 size={14} /></Button
 					>
 				</div>{/each}
 		</div>
 		<div class="mt-3 flex justify-center">
-			<Button onclick={add} disabled={!field.editable || !definition.editable}
-				><Plus size={14} />Add Encoding</Button
+			<Button
+				onclick={add}
+				onmousedown={keepFocus}
+				disabled={!field.editable || !definition.editable}><Plus size={14} />Add Encoding</Button
 			>
 		</div>
-	</div>{:else}<Button variant="outline" onclick={add} disabled={!field.editable}
-		><Braces size={15} />Add Enum</Button
+	</div>{:else}<Button
+		variant="outline"
+		onclick={add}
+		onmousedown={keepFocus}
+		disabled={!field.editable}><Braces size={15} />Add Enum</Button
 	>{/if}
